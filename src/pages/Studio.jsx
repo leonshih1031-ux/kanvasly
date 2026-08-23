@@ -345,6 +345,7 @@ export default function Studio() {
           processingText={processingText}
           progress={progress}
           canvasRef={canvasRef}
+          originalImage={originalImage}
         />
         <aside className="kv-controls-panel">
           {mode === "studio" ? (

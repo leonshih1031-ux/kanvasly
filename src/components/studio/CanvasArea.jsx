@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
-import { UploadCloud } from "lucide-react";
+import { UploadCloud, SplitSquareHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
+import CompareSlider from "@/components/studio/CompareSlider";
 
 export default function CanvasArea({
   hasImage,
@@ -9,9 +10,11 @@ export default function CanvasArea({
   processingText,
   progress,
   canvasRef,
+  originalImage,
 }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
+  const [compare, setCompare] = useState(false);
 
   const handleFiles = (files) => {
     if (files && files.length > 0) onFile(files[0]);
@@ -61,6 +64,19 @@ export default function CanvasArea({
       {hasImage && (
         <div className="kv-canvas-container">
           <canvas ref={canvasRef} className="kv-main-canvas" />
+          {compare && !processing && originalImage && (
+            <CompareSlider originalImage={originalImage} canvasRef={canvasRef} />
+          )}
+          {hasImage && !processing && (
+            <button
+              type="button"
+              className={cn("kv-compare-toggle", compare && "kv-compare-toggle-active")}
+              onClick={() => setCompare((c) => !c)}
+            >
+              <SplitSquareHorizontal size={15} />
+              {compare ? "Hide compare" : "Compare"}
+            </button>
+          )}
           {processing && (
             <div className="kv-processing-overlay">
               <div className="kv-spinner" />
