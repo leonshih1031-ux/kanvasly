@@ -12,6 +12,20 @@ module.exports = {
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
+  			kanvasly: {
+  				primary: '#7B6FE0',
+  				'primary-dark': '#5B4FD0',
+  				accent: '#14A082',
+  				'accent-light': '#1FC4A0',
+  				'primary-text': '#F5F3FF',
+  				secondary: '#C4BCEA',
+  				tertiary: '#9E94C8',
+  				base: '#0B0918',
+  				surface: '#14112A',
+  				'surface-hover': '#1E1838',
+  				elevated: '#221B3E',
+  				input: '#1A1430',
+  			},
   			card: {
   				DEFAULT: 'hsl(var(--card))',
   				foreground: 'hsl(var(--card-foreground))'
