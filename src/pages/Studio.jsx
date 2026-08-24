@@ -422,9 +422,36 @@ export default function Studio() {
   };
 
   const STEP_ORDER = ["upload", "remove-bg", "backdrop", "effects", "catalog", "on-model", "export"];
-  const skipStep = () => {
+
+  const nextStep = () => {
     const idx = STEP_ORDER.indexOf(currentStep);
     if (idx >= 0 && idx < STEP_ORDER.length - 1) setCurrentStep(STEP_ORDER[idx + 1]);
+  };
+
+  // Discard the current step's adjustments, then advance.
+  const resetStepState = (step) => {
+    if (step === "backdrop") {
+      patch({ backdrop: "studio-white", customColor: "#7B6FE0" });
+      setUploadedPhoto(null);
+      uploadedPhotoCanvasRef.current = null;
+      if (canvasSize.w) setBackdropImage(generateBackdrop("studio-white", canvasSize.w, canvasSize.h));
+    } else if (step === "effects") {
+      setS((prev) => ({
+        ...prev,
+        shadow: { ...INITIAL.shadow },
+        reflection: { ...INITIAL.reflection },
+        product: { ...INITIAL.product },
+      }));
+    } else if (step === "catalog") {
+      setCatalogAngle({ rotation: 0, scaleY: 1 });
+    } else if (step === "on-model") {
+      setS((prev) => ({ ...prev, onModel: { ...INITIAL.onModel } }));
+    }
+  };
+
+  const skipStep = () => {
+    resetStepState(currentStep);
+    nextStep();
   };
 
   const actions = {
@@ -437,6 +464,7 @@ export default function Studio() {
       reapplyPhoto,
       generateCatalog: generateCatalogImgs,
       applyOnModel,
+      nextStep,
       skipStep,
       export: doExport,
       selectExportPreset,
