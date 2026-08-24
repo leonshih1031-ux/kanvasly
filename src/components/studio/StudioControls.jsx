@@ -382,8 +382,8 @@ export default function StudioControls({
       )}
 
       {step !== "upload" && step !== "export" && (
-        <button className="kv-btn-secondary kv-btn-full mt-3" onClick={actions.skipStep}>
-          Skip this step
+        <button className="kv-btn-primary kv-btn-full mt-3" onClick={actions.skipStep}>
+          Next step →
         </button>
       )}
     </div>
