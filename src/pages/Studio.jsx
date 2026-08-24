@@ -11,7 +11,7 @@ import {
   createCanvas,
 } from "@/lib/kanvasly/utils";
 import { removeBackground, featherAlpha, loadBgRemovalLibrary } from "@/lib/kanvasly/bgRemoval";
-import { generateBackdrop, generateColorBackdrop, loadPhotoBackdrop } from "@/lib/kanvasly/backdrops";
+import { generateBackdrop, generateColorBackdrop } from "@/lib/kanvasly/backdrops";
 import { generateCatalog, compositeAngle, angleTransforms } from "@/lib/kanvasly/catalog";
 import { compositeOnModel } from "@/lib/kanvasly/onModel";
 import { exportToPreset } from "@/lib/kanvasly/exportUtils";
@@ -51,6 +51,8 @@ export default function Studio() {
   const [currentStep, setCurrentStep] = useState("upload");
   const [currentTool, setCurrentTool] = useState("bg-remove");
   const [catalogAngles, setCatalogAngles] = useState([]);
+  const [uploadedPhoto, setUploadedPhoto] = useState(null);
+  const uploadedPhotoCanvasRef = useRef(null);
   const [processing, setProcessing] = useState(false);
   const [processingText, setProcessingText] = useState("Processing...");
   const [progress, setProgress] = useState(null);
@@ -287,12 +289,23 @@ export default function Studio() {
     if (canvasSize.w) setBackdropImage(generateColorBackdrop(color, canvasSize.w, canvasSize.h));
   };
 
-  const selectPhoto = async (url) => {
+  const selectPhotoFile = async (file) => {
+    if (!file.type.startsWith("image/")) {
+      notify("Please choose an image file", "error");
+      return;
+    }
     if (!canvasSize.w) return;
     setProcessing(true);
     setProcessingText("Loading photo...");
     try {
-      const canvas = await loadPhotoBackdrop(url, canvasSize.w, canvasSize.h);
+      const img = await loadImageFromFile(file);
+      const { canvas, ctx } = createCanvas(canvasSize.w, canvasSize.h);
+      const scale = Math.max(canvasSize.w / img.width, canvasSize.h / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(img, (canvasSize.w - dw) / 2, (canvasSize.h - dh) / 2, dw, dh);
+      uploadedPhotoCanvasRef.current = canvas;
+      setUploadedPhoto(URL.createObjectURL(file));
       setBackdropImage(canvas);
       patch({ backdrop: "photo" });
       notify("Backdrop photo applied");
@@ -300,6 +313,13 @@ export default function Studio() {
       notify("Could not load photo: " + err.message, "error");
     } finally {
       setProcessing(false);
+    }
+  };
+
+  const reapplyPhoto = () => {
+    if (uploadedPhotoCanvasRef.current) {
+      setBackdropImage(uploadedPhotoCanvasRef.current);
+      patch({ backdrop: "photo" });
     }
   };
 
@@ -413,7 +433,8 @@ export default function Studio() {
       removeBg: () => doRemoveBg(false),
       selectBackdrop,
       selectCustomColor,
-      selectPhoto,
+      selectPhotoFile,
+      reapplyPhoto,
       generateCatalog: generateCatalogImgs,
       applyOnModel,
       skipStep,
@@ -477,6 +498,7 @@ export default function Studio() {
               setters={setters}
               catalogAngles={catalogAngles}
               onCatalogThumb={onCatalogThumb}
+              uploadedPhoto={uploadedPhoto}
             />
           ) : (
             <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} />

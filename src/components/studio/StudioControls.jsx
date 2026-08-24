@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useRef } from "react";
 import { Sparkles, Wand2, Layers, User, Download, FolderOpen } from "lucide-react";
 import Slider from "./Slider";
 import OptionGrid from "./OptionGrid";
-import { backdropList, photoBackdrops } from "@/lib/kanvasly/backdrops";
+import { backdropList } from "@/lib/kanvasly/backdrops";
 import { angleList } from "@/lib/kanvasly/catalog";
 import { modelPoseList } from "@/lib/kanvasly/onModel";
 import { studioExportList, exportPresets } from "@/lib/kanvasly/exportUtils";
@@ -37,7 +37,9 @@ export default function StudioControls({
   setters,
   catalogAngles,
   onCatalogThumb,
+  uploadedPhoto,
 }) {
+  const photoInputRef = useRef(null);
   return (
     <div className="kv-panel">
       {/* UPLOAD */}
@@ -111,22 +113,38 @@ export default function StudioControls({
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-[12px] text-kanvasly-secondary">Photo library</label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {photoBackdrops.map((p) => (
+            <label className="text-[12px] text-kanvasly-secondary">Your own photo</label>
+            <button
+              type="button"
+              className="kv-btn-secondary kv-btn-full"
+              onClick={() => photoInputRef.current?.click()}
+            >
+              Upload from device
+            </button>
+            {uploadedPhoto && (
+              <div className="grid grid-cols-3 gap-1.5">
                 <button
-                  key={p.key}
                   type="button"
-                  title={p.label}
-                  onClick={() => actions.selectPhoto(p.url)}
+                  title="Use your photo"
+                  onClick={() => actions.reapplyPhoto && actions.reapplyPhoto()}
                   className={cn(
                     "kv-photo-thumb",
                     state.backdrop === "photo" && "kv-photo-thumb-active"
                   )}
-                  style={{ backgroundImage: `url(${p.url})` }}
+                  style={{ backgroundImage: `url(${uploadedPhoto})` }}
                 />
-              ))}
-            </div>
+              </div>
+            )}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) actions.selectPhotoFile(e.target.files[0]);
+                e.target.value = "";
+              }}
+            />
           </div>
         </div>
       )}
