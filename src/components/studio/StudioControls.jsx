@@ -161,10 +161,10 @@ export default function StudioControls({
         <div className="kv-control-group">
           <PanelHeader icon={Layers} title="Multi-angle catalog" />
           <Hint>
-            Generate preview mockups of your product from different viewing angles. These
-            are simulated perspectives using transform matrices.
+            Drag on the canvas to adjust the viewing angle, or click a preset below.
+            Angles are simulated using transform matrices.
           </Hint>
-          <OptionGrid options={angleList} value="front" onSelect={() => {}} />
+          <OptionGrid options={angleList} value="front" onSelect={(k) => onCatalogThumb({ key: k })} />
           <button className="kv-btn-primary kv-btn-full" onClick={actions.generateCatalog}>
             Generate all angles
           </button>
@@ -285,6 +285,12 @@ export default function StudioControls({
             Download image
           </button>
         </div>
+      )}
+
+      {step !== "upload" && step !== "export" && (
+        <button className="kv-btn-secondary kv-btn-full mt-3" onClick={actions.skipStep}>
+          Skip this step
+        </button>
       )}
     </div>
   );

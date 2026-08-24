@@ -12,7 +12,7 @@ import {
 } from "@/lib/kanvasly/utils";
 import { removeBackground, featherAlpha, loadBgRemovalLibrary } from "@/lib/kanvasly/bgRemoval";
 import { generateBackdrop } from "@/lib/kanvasly/backdrops";
-import { generateCatalog } from "@/lib/kanvasly/catalog";
+import { generateCatalog, compositeAngle, angleTransforms } from "@/lib/kanvasly/catalog";
 import { compositeOnModel } from "@/lib/kanvasly/onModel";
 import { exportToPreset } from "@/lib/kanvasly/exportUtils";
 import { lightingPresets } from "@/lib/kanvasly/relighting";
@@ -24,6 +24,7 @@ const INITIAL = {
   shadow: { opacity: 50, blur: 20, offsetY: 15 },
   reflection: { enabled: false, opacity: 30, scale: 100 },
   onModel: { pose: "standing", scale: 100, x: 50, y: 50 },
+  catalogAngle: { skewX: 0, scaleX: 1, scaleY: 1 },
   bgModel: "isnet_fp16",
   bokeh: { blur: 15, focusScale: 60, applied: false },
   relight: { preset: "neutral", brightness: 100, contrast: 100, saturation: 100, temperature: 0, vignette: 0 },
@@ -48,7 +49,6 @@ export default function Studio() {
   const [currentStep, setCurrentStep] = useState("upload");
   const [currentTool, setCurrentTool] = useState("bg-remove");
   const [catalogAngles, setCatalogAngles] = useState([]);
-  const [catalogView, setCatalogView] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [processingText, setProcessingText] = useState("Processing...");
   const [progress, setProgress] = useState(null);
@@ -64,6 +64,9 @@ export default function Studio() {
   const setBokeh = (p) => setS((prev) => ({ ...prev, bokeh: { ...prev.bokeh, ...p } }));
   const setRelight = (p) => setS((prev) => ({ ...prev, relight: { ...prev.relight, ...p } }));
   const setRetouch = (p) => setS((prev) => ({ ...prev, retouch: { ...prev.retouch, ...p } }));
+  const setCatalogAngle = (v) => patch({ catalogAngle: v });
+  const catalogAngleRef = useRef({ skewX: 0, scaleX: 1, scaleY: 1 });
+  useEffect(() => { catalogAngleRef.current = s.catalogAngle; }, [s.catalogAngle]);
 
   // ---- size the canvas element once it mounts / dimensions change ----
   useEffect(() => {
@@ -88,13 +91,11 @@ export default function Studio() {
           const result = compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(result, 0, 0);
-        } else if (catalogView) {
-          const img = new Image();
-          img.onload = () => {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          };
-          img.src = catalogView;
+        } else if (currentStep === "catalog" && productImage) {
+          const bd = backdropImage || generateBackdrop(s.backdrop, canvas.width, canvas.height);
+          const out = compositeAngle(productImage, bd, s.catalogAngle);
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(out, 0, 0);
         } else {
           renderStudio(ctx, canvas, state);
         }
@@ -103,7 +104,50 @@ export default function Studio() {
       }
     }, 60);
     return () => clearTimeout(t);
-  }, [s, originalImage, productImage, backdropImage, hasImage, mode, currentStep, catalogView, canvasSize]);
+  }, [s, originalImage, productImage, backdropImage, hasImage, mode, currentStep, canvasSize]);
+
+  useEffect(() => {
+    if (mode !== "studio" || currentStep !== "catalog" || !productImage) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let start = { skewX: 0, scaleX: 1, scaleY: 1 };
+    const onDown = (e) => {
+      dragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      start = { ...catalogAngleRef.current };
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    };
+    const onMove = (e) => {
+      if (!dragging) return;
+      const rect = canvas.getBoundingClientRect();
+      const dx = (e.clientX - startX) / rect.width;
+      const dy = (e.clientY - startY) / rect.height;
+      const skewX = Math.max(-0.4, Math.min(0.4, start.skewX + dx * 0.8));
+      const scaleX = Math.max(0.55, 1 - Math.abs(skewX) * 0.6);
+      const scaleY = Math.max(0.55, Math.min(1.1, start.scaleY - dy * 0.6));
+      setCatalogAngle({ skewX, scaleX, scaleY });
+    };
+    const onUp = (e) => {
+      dragging = false;
+      try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+    };
+    canvas.style.cursor = "ew-resize";
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.addEventListener("pointercancel", onUp);
+    return () => {
+      canvas.style.cursor = "";
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointercancel", onUp);
+    };
+  }, [mode, currentStep, productImage]);
 
   const notify = (title, variant) => toast({ title, variant: variant === "error" ? "destructive" : "default" });
 
@@ -123,7 +167,6 @@ export default function Studio() {
       setProductImage(null);
       setBackdropImage(null);
       setCatalogAngles([]);
-      setCatalogView(null);
 
       let w = img.naturalWidth;
       let h = img.naturalHeight;
@@ -211,7 +254,6 @@ export default function Studio() {
       try {
         const angles = generateCatalog(productImage, bd);
         setCatalogAngles(angles);
-        setCatalogView(angles[0].dataURL);
         notify("Catalog generated");
       } catch (err) {
         notify("Catalog generation failed: " + err.message, "error");
@@ -221,7 +263,11 @@ export default function Studio() {
     }, 80);
   };
 
-  const onCatalogThumb = (a) => setCatalogView(a.dataURL);
+  const onCatalogThumb = (a) => {
+    const key = a.key || a.angle;
+    const t = angleTransforms[key];
+    setCatalogAngle(t ? { skewX: t.skewX || 0, scaleX: t.scaleX || 1, scaleY: t.scaleY || 1 } : { skewX: 0, scaleX: 1, scaleY: 1 });
+  };
 
   // ---- on-model (live preview via render effect) ----
   const applyOnModel = () => notify("On-model preview applied");
@@ -270,7 +316,6 @@ export default function Studio() {
   // ---- mode switch ----
   const onModeChange = (m) => {
     setS((prev) => ({ ...prev, mode: m }));
-    setCatalogView(null);
     if (m === "studio") setCurrentStep("upload");
     else setCurrentTool("bg-remove");
   };
@@ -279,7 +324,6 @@ export default function Studio() {
   const onSidebarSelect = (key) => {
     if (mode === "studio") {
       setCurrentStep(key);
-      if (key !== "catalog") setCatalogView(null);
     } else {
       setCurrentTool(key);
     }
@@ -291,6 +335,12 @@ export default function Studio() {
     else setCurrentTool("export");
   };
 
+  const STEP_ORDER = ["upload", "remove-bg", "backdrop", "effects", "catalog", "on-model", "export"];
+  const skipStep = () => {
+    const idx = STEP_ORDER.indexOf(currentStep);
+    if (idx >= 0 && idx < STEP_ORDER.length - 1) setCurrentStep(STEP_ORDER[idx + 1]);
+  };
+
   const actions = {
     studio: {
       browse: () => fileInputRef.current?.click(),
@@ -298,6 +348,7 @@ export default function Studio() {
       selectBackdrop,
       generateCatalog: generateCatalogImgs,
       applyOnModel,
+      skipStep,
       export: doExport,
       selectExportPreset,
     },
