@@ -10,7 +10,7 @@ export async function loadBgRemovalLibrary() {
     const mod = await import(
       /* @vite-ignore */ "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm"
     );
-    removeBackgroundFn = mod.default;
+    removeBackgroundFn = mod.removeBackground || mod.default;
     return removeBackgroundFn;
   })();
   return loadingPromise;
