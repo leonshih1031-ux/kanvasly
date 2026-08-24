@@ -24,7 +24,7 @@ const INITIAL = {
   shadow: { opacity: 50, blur: 20, offsetY: 15 },
   reflection: { enabled: false, opacity: 30, scale: 100 },
   onModel: { pose: "standing", scale: 100, x: 50, y: 50 },
-  catalogAngle: { skewX: 0, scaleX: 1, scaleY: 1 },
+  catalogAngle: { rotation: 0, scaleY: 1 },
   bgModel: "isnet_fp16",
   bokeh: { blur: 15, focusScale: 60, applied: false },
   relight: { preset: "neutral", brightness: 100, contrast: 100, saturation: 100, temperature: 0, vignette: 0 },
@@ -65,7 +65,7 @@ export default function Studio() {
   const setRelight = (p) => setS((prev) => ({ ...prev, relight: { ...prev.relight, ...p } }));
   const setRetouch = (p) => setS((prev) => ({ ...prev, retouch: { ...prev.retouch, ...p } }));
   const setCatalogAngle = (v) => patch({ catalogAngle: v });
-  const catalogAngleRef = useRef({ skewX: 0, scaleX: 1, scaleY: 1 });
+  const catalogAngleRef = useRef({ rotation: 0, scaleY: 1 });
   useEffect(() => { catalogAngleRef.current = s.catalogAngle; }, [s.catalogAngle]);
 
   // ---- size the canvas element once it mounts / dimensions change ----
@@ -102,7 +102,7 @@ export default function Studio() {
       } else {
         renderRetouch(ctx, canvas, state);
       }
-    }, 60);
+    }, 30);
     return () => clearTimeout(t);
   }, [s, originalImage, productImage, backdropImage, hasImage, mode, currentStep, canvasSize]);
 
@@ -113,7 +113,7 @@ export default function Studio() {
     let dragging = false;
     let startX = 0;
     let startY = 0;
-    let start = { skewX: 0, scaleX: 1, scaleY: 1 };
+    let start = { rotation: 0, scaleY: 1 };
     const onDown = (e) => {
       dragging = true;
       startX = e.clientX;
@@ -126,10 +126,9 @@ export default function Studio() {
       const rect = canvas.getBoundingClientRect();
       const dx = (e.clientX - startX) / rect.width;
       const dy = (e.clientY - startY) / rect.height;
-      const skewX = Math.max(-0.4, Math.min(0.4, start.skewX + dx * 0.8));
-      const scaleX = Math.max(0.55, 1 - Math.abs(skewX) * 0.6);
-      const scaleY = Math.max(0.55, Math.min(1.1, start.scaleY - dy * 0.6));
-      setCatalogAngle({ skewX, scaleX, scaleY });
+      const rotation = Math.max(-180, Math.min(180, start.rotation + dx * 80));
+      const scaleY = Math.max(0.5, Math.min(1.1, start.scaleY - dy * 0.6));
+      setCatalogAngle({ rotation, scaleY });
     };
     const onUp = (e) => {
       dragging = false;
@@ -266,7 +265,7 @@ export default function Studio() {
   const onCatalogThumb = (a) => {
     const key = a.key || a.angle;
     const t = angleTransforms[key];
-    setCatalogAngle(t ? { skewX: t.skewX || 0, scaleX: t.scaleX || 1, scaleY: t.scaleY || 1 } : { skewX: 0, scaleX: 1, scaleY: 1 });
+    setCatalogAngle(t ? { rotation: t.rotation || 0, scaleY: t.scaleY || 1 } : { rotation: 0, scaleY: 1 });
   };
 
   // ---- on-model (live preview via render effect) ----

@@ -3,22 +3,23 @@ import { createShadowMask } from "./compositing";
 
 export const angleList = [
   { key: "front", label: "Front" },
-  { key: "left", label: "Left 30" },
-  { key: "right", label: "Right 30" },
+  { key: "left", label: "Left" },
+  { key: "right", label: "Right" },
   { key: "top", label: "Top-down" },
   { key: "three-quarter", label: "3/4 view", span: true },
 ];
 
+// Presets now drive a real rotation + vertical tilt (scaleY).
 export const angleTransforms = {
   front: null,
-  left: { skewX: -0.17, scaleX: 0.82 },
-  right: { skewX: 0.17, scaleX: 0.82 },
-  top: { scaleY: 0.68, skewY: 0.087 },
-  "three-quarter": { skewX: -0.087, scaleX: 0.88, scaleY: 0.93 },
+  left: { rotation: -18, scaleY: 0.96 },
+  right: { rotation: 18, scaleY: 0.96 },
+  top: { rotation: 0, scaleY: 0.66 },
+  "three-quarter": { rotation: -10, scaleY: 0.9 },
 };
 
-// Renders the product onto a backdrop with a single transform (used for the
-// live, cursor-controlled angle in the catalog step).
+// Renders the product onto a backdrop with a rotation + tilt transform
+// (used for the live, cursor-controlled angle in the catalog step).
 function renderAngle(productImg, backdropCanvas, transform) {
   const w = backdropCanvas.width;
   const h = backdropCanvas.height;
@@ -29,9 +30,12 @@ function renderAngle(productImg, backdropCanvas, transform) {
   const drawW = productImg.width * scale;
   const drawH = productImg.height * scale;
   const t = transform || {};
+  const rotation = ((t.rotation || 0) * Math.PI) / 180;
+  const scaleY = t.scaleY || 1;
   ctx.save();
   ctx.translate(w / 2, h / 2);
-  ctx.transform(t.scaleX || 1, 0, t.skewX || 0, t.scaleY || 1, 0, 0);
+  ctx.rotate(rotation);
+  ctx.scale(1, scaleY);
   ctx.save();
   ctx.globalAlpha = 0.3;
   ctx.filter = "blur(12px)";

@@ -161,8 +161,8 @@ export default function StudioControls({
         <div className="kv-control-group">
           <PanelHeader icon={Layers} title="Multi-angle catalog" />
           <Hint>
-            Drag on the canvas to adjust the viewing angle, or click a preset below.
-            Angles are simulated using transform matrices.
+            Drag on the canvas to rotate the product fluidly, or click a preset
+            below. Angles are simulated using transform matrices.
           </Hint>
           <OptionGrid options={angleList} value="front" onSelect={(k) => onCatalogThumb({ key: k })} />
           <button className="kv-btn-primary kv-btn-full" onClick={actions.generateCatalog}>
