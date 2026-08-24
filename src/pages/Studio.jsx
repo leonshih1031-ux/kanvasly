@@ -15,8 +15,12 @@ import { generateBackdrop, generateColorBackdrop } from "@/lib/kanvasly/backdrop
 import { generateCatalog, compositeAngle, angleTransforms } from "@/lib/kanvasly/catalog";
 import { compositeOnModel } from "@/lib/kanvasly/onModel";
 import { exportToPreset } from "@/lib/kanvasly/exportUtils";
-import { lightingPresets } from "@/lib/kanvasly/relighting";
+import { lightingPresets, applyRelighting } from "@/lib/kanvasly/relighting";
+import { compositeProduct } from "@/lib/kanvasly/compositing";
 import { renderStudio, renderRetouch, ensureBackdrop } from "@/lib/kanvasly/render";
+import BatchSidebar from "@/components/studio/BatchSidebar";
+import BatchCanvasArea from "@/components/studio/BatchCanvasArea";
+import BatchControls from "@/components/studio/BatchControls";
 
 const INITIAL = {
   mode: "studio",
@@ -54,6 +58,12 @@ export default function Studio() {
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const uploadedPhotoCanvasRef = useRef(null);
   const [processing, setProcessing] = useState(false);
+  const [batchItems, setBatchItems] = useState([]);
+  const [batchPreviewOriginal, setBatchPreviewOriginal] = useState(null);
+  const [batchPreviewProduct, setBatchPreviewProduct] = useState(null);
+  const [batchProgress, setBatchProgress] = useState(null);
+  const batchImagesInputRef = useRef(null);
+  const batchFolderInputRef = useRef(null);
   const [processingText, setProcessingText] = useState("Processing...");
   const [progress, setProgress] = useState(null);
 
@@ -84,6 +94,35 @@ export default function Studio() {
 
   // ---- render effect (debounced for smooth sliders) ----
   useEffect(() => {
+    if (mode === "batch") {
+      let raf = requestAnimationFrame(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        if (canvasSize.w) {
+          canvas.width = canvasSize.w;
+          canvas.height = canvasSize.h;
+        }
+        const ctx = canvas.getContext("2d");
+        const w = canvas.width;
+        const h = canvas.height;
+        if (!w || !h) return;
+        const bd =
+          s.backdrop === "custom-color"
+            ? generateColorBackdrop(s.customColor, w, h)
+            : generateBackdrop(s.backdrop, w, h);
+        ctx.clearRect(0, 0, w, h);
+        if (batchPreviewProduct) {
+          const comp = compositeProduct(batchPreviewProduct, bd, s.shadow, s.reflection, s.product);
+          ctx.drawImage(comp, 0, 0);
+        } else if (batchPreviewOriginal) {
+          ctx.drawImage(batchPreviewOriginal, 0, 0, w, h);
+        } else {
+          ctx.drawImage(bd, 0, 0);
+        }
+        applyRelighting(canvas, s.relight);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
     if (!hasImage) return;
     let raf = requestAnimationFrame(() => {
       const canvas = canvasRef.current;
@@ -110,7 +149,7 @@ export default function Studio() {
       }
     });
     return () => cancelAnimationFrame(raf);
-  }, [s, originalImage, productImage, backdropImage, hasImage, mode, currentStep, canvasSize]);
+  }, [s, originalImage, productImage, backdropImage, hasImage, mode, currentStep, canvasSize, batchPreviewOriginal, batchPreviewProduct]);
 
   useEffect(() => {
     if (mode !== "studio" || currentStep !== "catalog" || !productImage) return;
@@ -323,6 +362,153 @@ export default function Studio() {
     }
   };
 
+  // ---- batch processing ----
+  const loadBatchFiles = async (files) => {
+    const arr = Array.from(files).filter(
+      (f) => f.type.startsWith("image/") || /\.(heic|heif)$/i.test(f.name)
+    );
+    if (!arr.length) return;
+    setProcessing(true);
+    setProgress(null);
+    setProcessingText("Loading images...");
+    const newItems = [];
+    for (const f of arr) {
+      if (f.size > 20 * 1024 * 1024) continue;
+      try {
+        const image = await loadImageFromFile(f);
+        newItems.push({
+          id: `${f.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          name: f.name,
+          file: f,
+          image,
+          status: "pending",
+        });
+      } catch (_) {}
+    }
+    if (newItems.length) {
+      setBatchItems((prev) => [...prev, ...newItems]);
+      if (!batchPreviewOriginal) {
+        const first = newItems[0];
+        setBatchPreviewOriginal(first.image);
+        let w = first.image.naturalWidth;
+        let h = first.image.naturalHeight;
+        const maxDim = 2048;
+        if (Math.max(w, h) > maxDim) {
+          const sc = maxDim / Math.max(w, h);
+          w = Math.round(w * sc);
+          h = Math.round(h * sc);
+        }
+        setCanvasSize({ w, h });
+        setProcessingText("Preparing preview...");
+        try {
+          await loadBgRemovalLibrary();
+          const rb = await removeBackground(first.image, { model: s.bgModel });
+          setBatchPreviewProduct(await loadImageFromBlob(rb));
+        } catch (_) {}
+      }
+    }
+    setProcessing(false);
+    setProgress(null);
+  };
+
+  const removeBatchItem = (id) => {
+    setBatchItems((prev) => {
+      const idx = prev.findIndex((it) => it.id === id);
+      if (idx === -1) return prev;
+      const next = [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+      if (idx === 0) {
+        if (next.length) {
+          const first = next[0];
+          setBatchPreviewOriginal(first.image);
+          let w = first.image.naturalWidth;
+          let h = first.image.naturalHeight;
+          const maxDim = 2048;
+          if (Math.max(w, h) > maxDim) {
+            const sc = maxDim / Math.max(w, h);
+            w = Math.round(w * sc);
+            h = Math.round(h * sc);
+          }
+          setCanvasSize({ w, h });
+          setBatchPreviewProduct(null);
+          loadBgRemovalLibrary()
+            .then(() => removeBackground(first.image, { model: s.bgModel }))
+            .then(loadImageFromBlob)
+            .then(setBatchPreviewProduct)
+            .catch(() => {});
+        } else {
+          setBatchPreviewOriginal(null);
+          setBatchPreviewProduct(null);
+        }
+      }
+      return next;
+    });
+  };
+
+  const clearBatch = () => {
+    setBatchItems([]);
+    setBatchPreviewOriginal(null);
+    setBatchPreviewProduct(null);
+  };
+
+  const processBatch = async () => {
+    if (!batchItems.length || processing) return;
+    setProcessing(true);
+    setProgress(0);
+    setProcessingText("Preparing batch...");
+    try {
+      await loadBgRemovalLibrary();
+    } catch (err) {
+      notify("Could not load AI model", "error");
+      setProcessing(false);
+      setProgress(null);
+      return;
+    }
+    let done = 0;
+    for (let i = 0; i < batchItems.length; i++) {
+      const item = batchItems[i];
+      setBatchProgress({ current: i + 1, total: batchItems.length });
+      setProcessingText(`Processing ${i + 1}/${batchItems.length}: ${item.name}`);
+      setProgress(Math.round((i / batchItems.length) * 100));
+      setBatchItems((prev) =>
+        prev.map((it, idx) => (idx === i ? { ...it, status: "processing" } : it))
+      );
+      try {
+        const rb = await removeBackground(item.image, { model: s.bgModel });
+        const product = await loadImageFromBlob(rb);
+        let w = item.image.naturalWidth;
+        let h = item.image.naturalHeight;
+        const maxDim = 2048;
+        if (Math.max(w, h) > maxDim) {
+          const sc = maxDim / Math.max(w, h);
+          w = Math.round(w * sc);
+          h = Math.round(h * sc);
+        }
+        const bd =
+          s.backdrop === "custom-color"
+            ? generateColorBackdrop(s.customColor, w, h)
+            : generateBackdrop(s.backdrop, w, h);
+        const comp = compositeProduct(product, bd, s.shadow, s.reflection, s.product);
+        applyRelighting(comp, s.relight);
+        const base = item.name.replace(/\.[^.]+$/, "");
+        exportToPreset(comp, s.exportPreset, s.exportFormat, 0.92, s.customW, s.customH, base);
+        done++;
+        setBatchItems((prev) =>
+          prev.map((it, idx) => (idx === i ? { ...it, status: "done" } : it))
+        );
+        await new Promise((r) => setTimeout(r, 400));
+      } catch (_) {
+        setBatchItems((prev) =>
+          prev.map((it, idx) => (idx === i ? { ...it, status: "error" } : it))
+        );
+      }
+    }
+    setProgress(100);
+    setBatchProgress(null);
+    setProcessing(false);
+    setProcessingText("Processing...");
+    notify(`Batch complete: ${done}/${batchItems.length} exported`);
+  };
+
   // ---- catalog ----
   const generateCatalogImgs = () => {
     if (!productImage) {
@@ -418,6 +604,7 @@ export default function Studio() {
   // ---- topbar export click ----
   const onExportClick = () => {
     if (mode === "studio") setCurrentStep("export");
+    else if (mode === "batch") processBatch();
     else setCurrentTool("export");
   };
 
@@ -480,6 +667,17 @@ export default function Studio() {
     },
   };
 
+  const batchActions = {
+    addImages: () => batchImagesInputRef.current?.click(),
+    addFolder: () => batchFolderInputRef.current?.click(),
+    selectBackdrop,
+    selectCustomColor,
+    selectLighting,
+    selectExportPreset,
+    clearBatch,
+    processBatch,
+  };
+
   const setters = {
     setBgModel: (v) => patch({ bgModel: v }),
     setShadow,
@@ -505,18 +703,54 @@ export default function Studio() {
         hidden
         onChange={(e) => e.target.files.length > 0 && loadFile(e.target.files[0])}
       />
+      <input
+        ref={batchImagesInputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          if (e.target.files.length) loadBatchFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={batchFolderInputRef}
+        type="file"
+        {...{ webkitdirectory: "", directory: "" }}
+        hidden
+        onChange={(e) => {
+          if (e.target.files.length) loadBatchFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
       <Topbar mode={mode} onModeChange={onModeChange} hasImage={hasImage} onExportClick={onExportClick} />
       <div className="kv-layout">
-        <Sidebar mode={mode} current={mode === "studio" ? currentStep : currentTool} onSelect={onSidebarSelect} />
-        <CanvasArea
-          hasImage={hasImage}
-          onFile={loadFile}
-          processing={processing}
-          processingText={processingText}
-          progress={progress}
-          canvasRef={canvasRef}
-          originalImage={originalImage}
-        />
+        {mode === "batch" ? (
+          <BatchSidebar items={batchItems} onRemove={removeBatchItem} onClear={clearBatch} processing={processing} />
+        ) : (
+          <Sidebar mode={mode} current={mode === "studio" ? currentStep : currentTool} onSelect={onSidebarSelect} />
+        )}
+        {mode === "batch" ? (
+          <BatchCanvasArea
+            hasItems={batchItems.length > 0}
+            onFiles={loadBatchFiles}
+            processing={processing}
+            processingText={processingText}
+            progress={progress}
+            canvasRef={canvasRef}
+          />
+        ) : (
+          <CanvasArea
+            hasImage={hasImage}
+            onFile={loadFile}
+            processing={processing}
+            processingText={processingText}
+            progress={progress}
+            canvasRef={canvasRef}
+            originalImage={originalImage}
+          />
+        )}
         <aside className="kv-controls-panel">
           {mode === "studio" ? (
             <StudioControls
@@ -528,8 +762,17 @@ export default function Studio() {
               onCatalogThumb={onCatalogThumb}
               uploadedPhoto={uploadedPhoto}
             />
-          ) : (
+          ) : mode === "retouch" ? (
             <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} />
+          ) : (
+            <BatchControls
+              state={s}
+              setters={setters}
+              actions={batchActions}
+              items={batchItems}
+              processing={processing}
+              progress={batchProgress}
+            />
           )}
         </aside>
       </div>

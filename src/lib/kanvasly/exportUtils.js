@@ -19,7 +19,7 @@ export const studioExportList = [
 
 export const retouchExportList = ["instagram-square", "instagram-story", "custom"];
 
-export function exportToPreset(sourceCanvas, presetKey, format, quality = 0.92, customW, customH) {
+export function exportToPreset(sourceCanvas, presetKey, format, quality = 0.92, customW, customH, name) {
   let targetW;
   let targetH;
   if (presetKey === "custom") {
@@ -48,6 +48,7 @@ export function exportToPreset(sourceCanvas, presetKey, format, quality = 0.92, 
 
   exportCanvas.toBlob((blob) => {
     const ext = format.split("/")[1];
-    downloadBlob(blob, `kanvasly-${presetKey}-${Date.now()}.${ext}`);
+    const filename = name ? `${name}.${ext}` : `kanvasly-${presetKey}-${Date.now()}.${ext}`;
+    downloadBlob(blob, filename);
   }, format, quality);
 }

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 const MODES = [
   { key: "studio", label: "Product Studio" },
   { key: "retouch", label: "Enhancement Suite" },
+  { key: "batch", label: "Batch" },
 ];
 
 export default function Topbar({ mode, onModeChange, hasImage, onExportClick }) {
