@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Slider({ label, value, min, max, unit = "", onChange }) {
+export default function Slider({ label, value, min, max, step = 1, unit = "", onChange }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="flex items-center justify-between text-[12px] text-kanvasly-secondary">
@@ -14,6 +14,7 @@ export default function Slider({ label, value, min, max, unit = "", onChange }) 
         type="range"
         min={min}
         max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="kv-slider"

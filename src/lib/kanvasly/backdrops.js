@@ -162,3 +162,44 @@ export function generateBackdrop(key, w, h) {
   gen(ctx, w, h);
   return canvas;
 }
+
+// Solid color backdrop with a subtle radial vignette for depth.
+export function generateColorBackdrop(color, w, h) {
+  const { canvas, ctx } = createCanvas(w, h);
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, w, h);
+  const g = ctx.createRadialGradient(w / 2, h * 0.4, 0, w / 2, h * 0.5, Math.max(w, h) * 0.75);
+  g.addColorStop(0, "rgba(255,255,255,0.06)");
+  g.addColorStop(1, "rgba(0,0,0,0.22)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  return canvas;
+}
+
+// Curated photo library (stable, CORS-enabled sample photos).
+export const photoBackdrops = [
+  { key: "photo-1", label: "Studio", url: "https://picsum.photos/seed/kv-studio/1200/1200" },
+  { key: "photo-2", label: "Warm", url: "https://picsum.photos/seed/kv-warm/1200/1200" },
+  { key: "photo-3", label: "Cool", url: "https://picsum.photos/seed/kv-cool/1200/1200" },
+  { key: "photo-4", label: "Nature", url: "https://picsum.photos/seed/kv-nature/1200/1200" },
+  { key: "photo-5", label: "Urban", url: "https://picsum.photos/seed/kv-urban/1200/1200" },
+  { key: "photo-6", label: "Minimal", url: "https://picsum.photos/seed/kv-minimal/1200/1200" },
+];
+
+// Loads a photo URL and draws it (cover-fit) onto a canvas of the given size.
+export function loadPhotoBackdrop(url, w, h) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const { canvas, ctx } = createCanvas(w, h);
+      const scale = Math.max(w / img.width, h / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+      resolve(canvas);
+    };
+    img.onerror = () => reject(new Error("Could not load photo"));
+    img.src = url;
+  });
+}

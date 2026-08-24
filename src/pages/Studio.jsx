@@ -11,7 +11,7 @@ import {
   createCanvas,
 } from "@/lib/kanvasly/utils";
 import { removeBackground, featherAlpha, loadBgRemovalLibrary } from "@/lib/kanvasly/bgRemoval";
-import { generateBackdrop } from "@/lib/kanvasly/backdrops";
+import { generateBackdrop, generateColorBackdrop, loadPhotoBackdrop } from "@/lib/kanvasly/backdrops";
 import { generateCatalog, compositeAngle, angleTransforms } from "@/lib/kanvasly/catalog";
 import { compositeOnModel } from "@/lib/kanvasly/onModel";
 import { exportToPreset } from "@/lib/kanvasly/exportUtils";
@@ -21,10 +21,12 @@ import { renderStudio, renderRetouch, ensureBackdrop } from "@/lib/kanvasly/rend
 const INITIAL = {
   mode: "studio",
   backdrop: "studio-white",
-  shadow: { opacity: 50, blur: 20, offsetY: 15 },
-  reflection: { enabled: false, opacity: 30, scale: 100 },
+  shadow: { opacity: 50, blur: 20, offsetX: 0, offsetY: 15 },
+  reflection: { enabled: false, opacity: 30, scale: 100, blur: 2 },
+  product: { x: 50, y: 50, scale: 100 },
   onModel: { pose: "standing", scale: 100, x: 50, y: 50 },
   catalogAngle: { rotation: 0, scaleY: 1 },
+  customColor: "#7B6FE0",
   bgModel: "isnet_fp16",
   bokeh: { blur: 15, focusScale: 60, applied: false },
   relight: { preset: "neutral", brightness: 100, contrast: 100, saturation: 100, temperature: 0, vignette: 0 },
@@ -65,6 +67,8 @@ export default function Studio() {
   const setRelight = (p) => setS((prev) => ({ ...prev, relight: { ...prev.relight, ...p } }));
   const setRetouch = (p) => setS((prev) => ({ ...prev, retouch: { ...prev.retouch, ...p } }));
   const setCatalogAngle = (v) => patch({ catalogAngle: v });
+  const setProduct = (p) => setS((prev) => ({ ...prev, product: { ...prev.product, ...p } }));
+  const setCustomColor = (v) => patch({ customColor: v });
   const catalogAngleRef = useRef({ rotation: 0, scaleY: 1 });
   useEffect(() => { catalogAngleRef.current = s.catalogAngle; }, [s.catalogAngle]);
 
@@ -79,7 +83,7 @@ export default function Studio() {
   // ---- render effect (debounced for smooth sliders) ----
   useEffect(() => {
     if (!hasImage) return;
-    const t = setTimeout(() => {
+    let raf = requestAnimationFrame(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
@@ -102,39 +106,78 @@ export default function Studio() {
       } else {
         renderRetouch(ctx, canvas, state);
       }
-    }, 30);
-    return () => clearTimeout(t);
+    });
+    return () => cancelAnimationFrame(raf);
   }, [s, originalImage, productImage, backdropImage, hasImage, mode, currentStep, canvasSize]);
 
   useEffect(() => {
     if (mode !== "studio" || currentStep !== "catalog" || !productImage) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    let dragging = false;
+    const pointers = new Map();
+    let singleDrag = false;
     let startX = 0;
     let startY = 0;
     let start = { rotation: 0, scaleY: 1 };
+    let lastGestureAngle = 0;
+    let gestureBase = 0;
+    let gestureAccum = 0;
+
     const onDown = (e) => {
-      dragging = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      start = { ...catalogAngleRef.current };
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+      if (pointers.size === 1) {
+        singleDrag = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        start = { ...catalogAngleRef.current };
+        canvas.style.cursor = "grabbing";
+      } else if (pointers.size === 2) {
+        singleDrag = false;
+        const [p1, p2] = [...pointers.values()];
+        lastGestureAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        gestureBase = catalogAngleRef.current.rotation;
+        gestureAccum = 0;
+      }
     };
     const onMove = (e) => {
-      if (!dragging) return;
-      const rect = canvas.getBoundingClientRect();
-      const dx = (e.clientX - startX) / rect.width;
-      const dy = (e.clientY - startY) / rect.height;
-      const rotation = Math.max(-180, Math.min(180, start.rotation + dx * 80));
-      const scaleY = Math.max(0.5, Math.min(1.1, start.scaleY - dy * 0.6));
-      setCatalogAngle({ rotation, scaleY });
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const fine = e.shiftKey ? 0.25 : 1;
+      if (pointers.size === 2) {
+        const [p1, p2] = [...pointers.values()];
+        const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        let delta = ang - lastGestureAngle;
+        if (delta > Math.PI) delta -= 2 * Math.PI;
+        if (delta < -Math.PI) delta += 2 * Math.PI;
+        gestureAccum += delta;
+        lastGestureAngle = ang;
+        const rotation = Math.max(-180, Math.min(180, gestureBase + gestureAccum * (180 / Math.PI) * fine));
+        setCatalogAngle({ rotation, scaleY: catalogAngleRef.current.scaleY });
+      } else if (singleDrag) {
+        const rect = canvas.getBoundingClientRect();
+        const dx = (e.clientX - startX) / rect.width;
+        const dy = (e.clientY - startY) / rect.height;
+        const rotation = Math.max(-180, Math.min(180, start.rotation + dx * 80 * fine));
+        const scaleY = Math.max(0.5, Math.min(1.1, start.scaleY - dy * 0.6));
+        setCatalogAngle({ rotation, scaleY });
+      }
     };
     const onUp = (e) => {
-      dragging = false;
+      pointers.delete(e.pointerId);
       try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (pointers.size === 1) {
+        const [p] = [...pointers.values()];
+        singleDrag = true;
+        startX = p.x;
+        startY = p.y;
+        start = { ...catalogAngleRef.current };
+      } else if (pointers.size === 0) {
+        singleDrag = false;
+        canvas.style.cursor = "grab";
+      }
     };
-    canvas.style.cursor = "ew-resize";
+    canvas.style.cursor = "grab";
     canvas.addEventListener("pointerdown", onDown);
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerup", onUp);
@@ -231,8 +274,32 @@ export default function Studio() {
   // ---- backdrop selection ----
   const selectBackdrop = (key) => {
     patch({ backdrop: key });
-    if (productImage && canvasSize.w) {
+    if (!canvasSize.w) return;
+    if (key === "custom-color") {
+      setBackdropImage(generateColorBackdrop(s.customColor, canvasSize.w, canvasSize.h));
+    } else if (key !== "photo") {
       setBackdropImage(generateBackdrop(key, canvasSize.w, canvasSize.h));
+    }
+  };
+
+  const selectCustomColor = (color) => {
+    patch({ customColor: color, backdrop: "custom-color" });
+    if (canvasSize.w) setBackdropImage(generateColorBackdrop(color, canvasSize.w, canvasSize.h));
+  };
+
+  const selectPhoto = async (url) => {
+    if (!canvasSize.w) return;
+    setProcessing(true);
+    setProcessingText("Loading photo...");
+    try {
+      const canvas = await loadPhotoBackdrop(url, canvasSize.w, canvasSize.h);
+      setBackdropImage(canvas);
+      patch({ backdrop: "photo" });
+      notify("Backdrop photo applied");
+    } catch (err) {
+      notify("Could not load photo: " + err.message, "error");
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -345,6 +412,8 @@ export default function Studio() {
       browse: () => fileInputRef.current?.click(),
       removeBg: () => doRemoveBg(false),
       selectBackdrop,
+      selectCustomColor,
+      selectPhoto,
       generateCatalog: generateCatalogImgs,
       applyOnModel,
       skipStep,
@@ -367,9 +436,11 @@ export default function Studio() {
     setShadow,
     setReflection,
     setOnModel,
+    setProduct,
     setBokeh,
     setRelight,
     setRetouch,
+    setCustomColor,
     setFeather: (v) => patch({ feather: v }),
     setExportFormat: (v) => patch({ exportFormat: v }),
     setCustomW: (v) => patch({ customW: v }),

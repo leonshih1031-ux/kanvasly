@@ -2,7 +2,7 @@ import React from "react";
 import { Sparkles, Wand2, Layers, User, Download, FolderOpen } from "lucide-react";
 import Slider from "./Slider";
 import OptionGrid from "./OptionGrid";
-import { backdropList } from "@/lib/kanvasly/backdrops";
+import { backdropList, photoBackdrops } from "@/lib/kanvasly/backdrops";
 import { angleList } from "@/lib/kanvasly/catalog";
 import { modelPoseList } from "@/lib/kanvasly/onModel";
 import { studioExportList, exportPresets } from "@/lib/kanvasly/exportUtils";
@@ -86,23 +86,83 @@ export default function StudioControls({
       {/* BACKDROP */}
       {step === "backdrop" && (
         <div className="kv-control-group">
-          <PanelHeader icon={Layers} title="Backdrop templates" />
+          <PanelHeader icon={Layers} title="Backdrop" />
           <Hint>
-            Select a backdrop to place your product into. All backdrops are procedurally
-            generated.
+            Choose a procedural backdrop, pick an exact color, or use a photo from the
+            library.
           </Hint>
           <OptionGrid
             options={backdropList}
             value={state.backdrop}
             onSelect={actions.selectBackdrop}
           />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-kanvasly-secondary">Custom color</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={state.customColor}
+                onChange={(e) => actions.selectCustomColor(e.target.value)}
+                className="kv-color-input"
+              />
+              <span className="text-[12px] text-kanvasly-tertiary tabular-nums">
+                {state.customColor.toUpperCase()}
+              </span>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-kanvasly-secondary">Photo library</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {photoBackdrops.map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  title={p.label}
+                  onClick={() => actions.selectPhoto(p.url)}
+                  className={cn(
+                    "kv-photo-thumb",
+                    state.backdrop === "photo" && "kv-photo-thumb-active"
+                  )}
+                  style={{ backgroundImage: `url(${p.url})` }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
       {/* EFFECTS */}
       {step === "effects" && (
         <div className="kv-control-group">
-          <PanelHeader icon={Sparkles} title="Shadow & reflection" />
+          <PanelHeader icon={Sparkles} title="Position & lighting" />
+          <Slider
+            label="Position X"
+            value={state.product.x}
+            min={0}
+            max={100}
+            step={1}
+            unit="%"
+            onChange={(v) => setters.setProduct({ x: v })}
+          />
+          <Slider
+            label="Position Y"
+            value={state.product.y}
+            min={0}
+            max={100}
+            step={1}
+            unit="%"
+            onChange={(v) => setters.setProduct({ y: v })}
+          />
+          <Slider
+            label="Product scale"
+            value={state.product.scale}
+            min={20}
+            max={200}
+            step={1}
+            unit="%"
+            onChange={(v) => setters.setProduct({ scale: v })}
+          />
+          <div className="h-px bg-white/5 my-1" />
           <Slider
             label="Shadow opacity"
             value={state.shadow.opacity}
@@ -115,15 +175,23 @@ export default function StudioControls({
             label="Shadow blur"
             value={state.shadow.blur}
             min={0}
-            max={50}
+            max={60}
             unit="px"
             onChange={(v) => setters.setShadow({ blur: v })}
+          />
+          <Slider
+            label="Shadow offset X"
+            value={state.shadow.offsetX}
+            min={-50}
+            max={50}
+            unit="px"
+            onChange={(v) => setters.setShadow({ offsetX: v })}
           />
           <Slider
             label="Shadow offset Y"
             value={state.shadow.offsetY}
             min={0}
-            max={50}
+            max={80}
             unit="px"
             onChange={(v) => setters.setShadow({ offsetY: v })}
           />
@@ -147,10 +215,18 @@ export default function StudioControls({
             <Slider
               label="Reflection scale"
               value={state.reflection.scale}
-              min={50}
+              min={20}
               max={100}
               unit="%"
               onChange={(v) => setters.setReflection({ scale: v })}
+            />
+            <Slider
+              label="Reflection blur"
+              value={state.reflection.blur}
+              min={0}
+              max={20}
+              unit="px"
+              onChange={(v) => setters.setReflection({ blur: v })}
             />
           </div>
         </div>
@@ -161,8 +237,8 @@ export default function StudioControls({
         <div className="kv-control-group">
           <PanelHeader icon={Layers} title="Multi-angle catalog" />
           <Hint>
-            Drag on the canvas to rotate the product fluidly, or click a preset
-            below. Angles are simulated using transform matrices.
+            Drag on the canvas to rotate. Use two fingers to rotate precisely, or
+            hold Shift for fine control. Click a preset to snap to an angle.
           </Hint>
           <OptionGrid options={angleList} value="front" onSelect={(k) => onCatalogThumb({ key: k })} />
           <button className="kv-btn-primary kv-btn-full" onClick={actions.generateCatalog}>

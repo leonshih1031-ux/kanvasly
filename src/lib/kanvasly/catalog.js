@@ -1,6 +1,18 @@
 import { createCanvas } from "./utils";
 import { createShadowMask } from "./compositing";
 
+// Cache the (opaque) shadow mask per product image + size so the live
+// rotation drag never re-runs the pixel loop on every frame.
+const shadowCache = new WeakMap();
+function getShadowMask(productImg, drawW, drawH) {
+  const key = `${Math.round(drawW)}x${Math.round(drawH)}`;
+  const entry = shadowCache.get(productImg);
+  if (entry && entry.key === key) return entry.canvas;
+  const canvas = createShadowMask(productImg, drawW, drawH);
+  shadowCache.set(productImg, { key, canvas });
+  return canvas;
+}
+
 export const angleList = [
   { key: "front", label: "Front" },
   { key: "left", label: "Left" },
@@ -39,8 +51,7 @@ function renderAngle(productImg, backdropCanvas, transform) {
   ctx.save();
   ctx.globalAlpha = 0.3;
   ctx.filter = "blur(12px)";
-  const shadowCanvas = createShadowMask(productImg, drawW, drawH);
-  ctx.drawImage(shadowCanvas, -drawW / 2, -drawH / 2 + 12);
+  ctx.drawImage(getShadowMask(productImg, drawW, drawH), -drawW / 2, -drawH / 2 + 12);
   ctx.restore();
   ctx.drawImage(productImg, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();

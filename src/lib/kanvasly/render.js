@@ -19,7 +19,8 @@ export function renderStudio(ctx, canvas, state) {
       state.productImage,
       state.backdropImage,
       state.shadow,
-      state.reflection
+      state.reflection,
+      state.product
     );
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(composited, 0, 0);
