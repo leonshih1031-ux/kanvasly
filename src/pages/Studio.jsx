@@ -143,7 +143,7 @@ export default function Studio() {
           ctx.drawImage(result, 0, 0);
         } else if (currentStep === "catalog" && productImage) {
           const bd = backdropImage || generateBackdrop(s.backdrop, canvas.width, canvas.height);
-          const out = compositeAngle(productImage, bd, s.catalogAngle, s.shadow, s.reflection);
+          const out = compositeAngle(productImage, bd, s.catalogAngle, s.shadow, s.reflection, s.product);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(out, 0, 0);
         } else {
@@ -616,7 +616,7 @@ export default function Studio() {
     setProcessingText("Generating angles...");
     setTimeout(() => {
       try {
-        const angles = generateCatalog(productImage, bd, s.shadow, s.reflection);
+        const angles = generateCatalog(productImage, bd, s.shadow, s.reflection, s.product);
         setCatalogAngles(angles);
         notify("Catalog generated");
       } catch (err) {
