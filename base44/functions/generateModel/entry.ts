@@ -34,7 +34,11 @@ export default async function(req) {
       },
     });
 
-    const refined = (refine?.prompt || '').toString().trim() || description;
+    let refined = (refine?.prompt || '').toString();
+    // Strip LLM meta-commentary / JSON-closing artifacts that leak into the prompt string.
+    const cutIdx = refined.indexOf('"}}');
+    if (cutIdx !== -1) refined = refined.slice(0, cutIdx);
+    refined = refined.trim() || description;
 
     // Step 2: generate the image with the refined prompt.
     const result = await base44.asServiceRole.integrations.Core.GenerateImage({ prompt: refined });
