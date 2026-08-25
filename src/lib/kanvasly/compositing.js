@@ -14,21 +14,10 @@ export function createShadowMask(productImg, w, h) {
   return canvas;
 }
 
-export function compositeProduct(productImg, backdropCanvas, shadow, reflection, product) {
-  const w = backdropCanvas.width;
-  const h = backdropCanvas.height;
-  const { canvas, ctx } = createCanvas(w, h);
-  ctx.drawImage(backdropCanvas, 0, 0);
-  if (!productImg) return canvas;
-
-  const p = product || { x: 50, y: 50, scale: 100 };
-  const baseScale = Math.min((w * 0.65) / productImg.width, (h * 0.65) / productImg.height);
-  const scale = baseScale * (p.scale / 100);
-  const drawW = productImg.width * scale;
-  const drawH = productImg.height * scale;
-  const drawX = (w * p.x) / 100 - drawW / 2;
-  const drawY = (h * p.y) / 100 - drawH / 2;
-
+// Shared shadow + reflection renderer used by every studio composition step
+// so that adjustments made in the Effects step persist across catalog, on-model,
+// and export.  All coordinates are absolute canvas-space.
+export function drawShadowAndReflection(ctx, productImg, drawX, drawY, drawW, drawH, shadow, reflection) {
   // Cast shadow: blurred silhouette with a ground-perspective skew + offset.
   if (shadow && shadow.opacity > 0) {
     const shadowCanvas = createShadowMask(productImg, drawW, drawH);
@@ -83,7 +72,24 @@ export function compositeProduct(productImg, backdropCanvas, shadow, reflection,
     ctx.drawImage(refCanvas, drawX, drawY + drawH);
     ctx.restore();
   }
+}
 
+export function compositeProduct(productImg, backdropCanvas, shadow, reflection, product) {
+  const w = backdropCanvas.width;
+  const h = backdropCanvas.height;
+  const { canvas, ctx } = createCanvas(w, h);
+  ctx.drawImage(backdropCanvas, 0, 0);
+  if (!productImg) return canvas;
+
+  const p = product || { x: 50, y: 50, scale: 100 };
+  const baseScale = Math.min((w * 0.65) / productImg.width, (h * 0.65) / productImg.height);
+  const scale = baseScale * (p.scale / 100);
+  const drawW = productImg.width * scale;
+  const drawH = productImg.height * scale;
+  const drawX = (w * p.x) / 100 - drawW / 2;
+  const drawY = (h * p.y) / 100 - drawH / 2;
+
+  drawShadowAndReflection(ctx, productImg, drawX, drawY, drawW, drawH, shadow, reflection);
   ctx.drawImage(productImg, drawX, drawY, drawW, drawH);
   return canvas;
 }

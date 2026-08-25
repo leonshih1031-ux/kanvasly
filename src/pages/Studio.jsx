@@ -137,13 +137,13 @@ export default function Studio() {
         if (currentStep === "on-model" && productImage) {
           const bd = ensureBackdrop(state) || generateBackdrop(s.backdrop, canvas.width, canvas.height);
           const result = onModelImage
-            ? compositeOnAIModel(productImage, onModelImage, s.onModel.scale, s.onModel.x, s.onModel.y, bd)
-            : compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd);
+            ? compositeOnAIModel(productImage, onModelImage, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection)
+            : compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(result, 0, 0);
         } else if (currentStep === "catalog" && productImage) {
           const bd = backdropImage || generateBackdrop(s.backdrop, canvas.width, canvas.height);
-          const out = compositeAngle(productImage, bd, s.catalogAngle);
+          const out = compositeAngle(productImage, bd, s.catalogAngle, s.shadow, s.reflection);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(out, 0, 0);
         } else {
@@ -616,7 +616,7 @@ export default function Studio() {
     setProcessingText("Generating angles...");
     setTimeout(() => {
       try {
-        const angles = generateCatalog(productImage, bd);
+        const angles = generateCatalog(productImage, bd, s.shadow, s.reflection);
         setCatalogAngles(angles);
         notify("Catalog generated");
       } catch (err) {

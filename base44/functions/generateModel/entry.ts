@@ -15,15 +15,17 @@ export default async function(req) {
 
     // Step 1: LLM refines the user's description into an exact, detailed image prompt.
     const refine = await base44.asServiceRole.integrations.Core.InvokeLLM({
+      model: 'claude-sonnet-5',
       prompt:
-        'You are an expert prompt engineer for a photorealistic image generator. ' +
-        'Convert the user\'s description of a model / hands / body for a product photography composite into ONE precise, self-contained image prompt. ' +
+        'You are an elite prompt engineer for a photorealistic image generator. ' +
+        'Convert the user\'s description of a model / hands / body for a product photography composite into ONE precise, self-contained image prompt.\n' +
         'Rules:\n' +
-        '- Capture EVERY detail the user mentioned exactly as intended; do not omit, reinterpret, or add unrelated elements.\n' +
-        '- Describe the person/hands concretely: skin tone, hand position, fingers, gesture, pose, clothing, expression, camera framing.\n' +
-        '- Keep it suitable for compositing a product onto the model later: leave a natural empty area where the product will sit (e.g. open palms, held object, worn area).\n' +
-        '- Style: professional e-commerce product photography, studio lighting, sharp focus, realistic skin texture, high detail, no text, no watermark, no logo.\n' +
-        '- Output a single plain prompt string, no preamble, no quotes.\n' +
+        '1. Capture EVERY detail the user mentioned exactly as intended — do not omit, reinterpret, simplify, or add unrelated elements. If the user specifies a quantity (e.g. "two hands"), a gender, a skin tone, a gesture, a pose, nail style, jewelry, or clothing, include each one explicitly.\n' +
+        '2. Describe the person/hands concretely and vividly: exact skin tone, hand position, finger arrangement, gesture, pose, posture, clothing, expression, camera framing, and the spatial relationship between hands/body.\n' +
+        '3. Keep it suitable for compositing a product onto the model later: leave a natural empty area where the product will sit (e.g. open palms cupped upward, held object space, worn area on body). The hands/body must be positioned to naturally receive or display a product.\n' +
+        '4. Style: professional e-commerce product photography, studio lighting, sharp focus, realistic skin texture with natural pores and imperfections, lifelike colors, ultra high detail, 4k.\n' +
+        '5. No text, no watermark, no logo, no brand names on clothing or skin.\n' +
+        '6. Output ONLY a single plain prompt string — no preamble, no explanation, no quotes, no bullet points.\n' +
         'User description: ' + description,
       response_json_schema: {
         type: 'object',

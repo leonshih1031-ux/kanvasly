@@ -1,4 +1,5 @@
 import { createCanvas } from "./utils";
+import { drawShadowAndReflection } from "./compositing";
 
 // Draws a tapered filled limb between two points.
 function limb(ctx, x1, y1, x2, y2, w1, w2) {
@@ -89,7 +90,8 @@ export const modelPoseList = [
 ];
 
 // Composites the product onto an AI-generated model image (cover-fit) instead of a procedural silhouette.
-export function compositeOnAIModel(productImg, modelCanvas, scale, xPct, yPct, backdropCanvas) {
+// Shadow & reflection from the Effects step are applied so adjustments persist.
+export function compositeOnAIModel(productImg, modelCanvas, scale, xPct, yPct, backdropCanvas, shadow, reflection) {
   const w = backdropCanvas.width;
   const h = backdropCanvas.height;
   const { canvas, ctx } = createCanvas(w, h);
@@ -104,11 +106,12 @@ export function compositeOnAIModel(productImg, modelCanvas, scale, xPct, yPct, b
   const drawH = productImg.height * pScale;
   const drawX = (w * xPct) / 100 - drawW / 2;
   const drawY = (h * yPct) / 100 - drawH / 2;
+  drawShadowAndReflection(ctx, productImg, drawX, drawY, drawW, drawH, shadow, reflection);
   ctx.drawImage(productImg, drawX, drawY, drawW, drawH);
   return canvas;
 }
 
-export function compositeOnModel(productImg, pose, scale, xPct, yPct, backdropCanvas) {
+export function compositeOnModel(productImg, pose, scale, xPct, yPct, backdropCanvas, shadow, reflection) {
   const w = backdropCanvas.width;
   const h = backdropCanvas.height;
   const { canvas, ctx } = createCanvas(w, h);
@@ -120,6 +123,7 @@ export function compositeOnModel(productImg, pose, scale, xPct, yPct, backdropCa
   const drawH = productImg.height * pScale;
   const drawX = (w * xPct) / 100 - drawW / 2;
   const drawY = (h * yPct) / 100 - drawH / 2;
+  drawShadowAndReflection(ctx, productImg, drawX, drawY, drawW, drawH, shadow, reflection);
   ctx.drawImage(productImg, drawX, drawY, drawW, drawH);
   return canvas;
 }
