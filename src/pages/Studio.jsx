@@ -21,6 +21,7 @@ import { renderStudio, renderRetouch, ensureBackdrop } from "@/lib/kanvasly/rend
 import BatchSidebar from "@/components/studio/BatchSidebar";
 import BatchCanvasArea from "@/components/studio/BatchCanvasArea";
 import BatchControls from "@/components/studio/BatchControls";
+import { base44 } from "@/api/base44Client";
 
 const INITIAL = {
   mode: "studio",
@@ -62,6 +63,7 @@ export default function Studio() {
   const [batchPreviewOriginal, setBatchPreviewOriginal] = useState(null);
   const [batchPreviewProduct, setBatchPreviewProduct] = useState(null);
   const [batchProgress, setBatchProgress] = useState(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const batchImagesInputRef = useRef(null);
   const batchFolderInputRef = useRef(null);
   const [processingText, setProcessingText] = useState("Processing...");
@@ -362,6 +364,50 @@ export default function Studio() {
     }
   };
 
+  // ---- AI scene generation ----
+  const generateScene = async (prompt) => {
+    const p = (prompt || "").trim();
+    if (!p || processing) return;
+    if (!canvasSize.w) {
+      notify("Upload a product image first", "error");
+      return;
+    }
+    setAiGenerating(true);
+    setProcessing(true);
+    setProgress(null);
+    setProcessingText("Generating AI scene…");
+    try {
+      const res = await base44.functions.invoke("generateScene", { prompt: p });
+      const url = res?.data?.url;
+      if (!url) throw new Error("No image returned");
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Could not fetch generated image");
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const img = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("Could not load generated image"));
+        im.src = objUrl;
+      });
+      const { canvas, ctx } = createCanvas(canvasSize.w, canvasSize.h);
+      const scale = Math.max(canvasSize.w / img.width, canvasSize.h / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(img, (canvasSize.w - dw) / 2, (canvasSize.h - dh) / 2, dw, dh);
+      URL.revokeObjectURL(objUrl);
+      setBackdropImage(canvas);
+      patch({ backdrop: "photo" });
+      notify("AI scene generated — position your product into it");
+    } catch (err) {
+      notify("AI generation failed: " + (err.message || "Unknown error"), "error");
+    } finally {
+      setAiGenerating(false);
+      setProcessing(false);
+      setProcessingText("Processing...");
+    }
+  };
+
   // ---- batch processing ----
   const loadBatchFiles = async (files) => {
     const arr = Array.from(files).filter(
@@ -649,6 +695,7 @@ export default function Studio() {
       selectCustomColor,
       selectPhotoFile,
       reapplyPhoto,
+      generateScene,
       generateCatalog: generateCatalogImgs,
       applyOnModel,
       nextStep,
@@ -761,6 +808,7 @@ export default function Studio() {
               catalogAngles={catalogAngles}
               onCatalogThumb={onCatalogThumb}
               uploadedPhoto={uploadedPhoto}
+              aiGenerating={aiGenerating}
             />
           ) : mode === "retouch" ? (
             <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} />

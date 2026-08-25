@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { Sparkles, Wand2, Layers, User, Download, FolderOpen } from "lucide-react";
 import Slider from "./Slider";
 import OptionGrid from "./OptionGrid";
@@ -38,8 +38,10 @@ export default function StudioControls({
   catalogAngles,
   onCatalogThumb,
   uploadedPhoto,
+  aiGenerating,
 }) {
   const photoInputRef = useRef(null);
+  const [aiPrompt, setAiPrompt] = useState("");
   return (
     <div className="kv-panel">
       {/* UPLOAD */}
@@ -111,6 +113,27 @@ export default function StudioControls({
                 {state.customColor.toUpperCase()}
               </span>
             </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-kanvasly-secondary">AI scene</label>
+            <input
+              type="text"
+              className="kv-input"
+              placeholder="e.g. two hands holding controllers"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && aiPrompt.trim() && !aiGenerating) actions.generateScene(aiPrompt);
+              }}
+            />
+            <button
+              type="button"
+              className="kv-btn-secondary kv-btn-full"
+              onClick={() => actions.generateScene(aiPrompt)}
+              disabled={!aiPrompt.trim() || aiGenerating}
+            >
+              {aiGenerating ? "Generating…" : "Generate scene"}
+            </button>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-kanvasly-secondary">Your own photo</label>
