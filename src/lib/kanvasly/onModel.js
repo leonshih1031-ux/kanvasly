@@ -88,6 +88,26 @@ export const modelPoseList = [
   { key: "wearing", label: "Wearing" },
 ];
 
+// Composites the product onto an AI-generated model image (cover-fit) instead of a procedural silhouette.
+export function compositeOnAIModel(productImg, modelCanvas, scale, xPct, yPct, backdropCanvas) {
+  const w = backdropCanvas.width;
+  const h = backdropCanvas.height;
+  const { canvas, ctx } = createCanvas(w, h);
+  ctx.drawImage(backdropCanvas, 0, 0);
+  const s = Math.max(w / modelCanvas.width, h / modelCanvas.height);
+  const dw = modelCanvas.width * s;
+  const dh = modelCanvas.height * s;
+  ctx.drawImage(modelCanvas, (w - dw) / 2, (h - dh) / 2, dw, dh);
+  if (!productImg) return canvas;
+  const pScale = Math.min((w * 0.3) / productImg.width, (h * 0.3) / productImg.height) * (scale / 100);
+  const drawW = productImg.width * pScale;
+  const drawH = productImg.height * pScale;
+  const drawX = (w * xPct) / 100 - drawW / 2;
+  const drawY = (h * yPct) / 100 - drawH / 2;
+  ctx.drawImage(productImg, drawX, drawY, drawW, drawH);
+  return canvas;
+}
+
 export function compositeOnModel(productImg, pose, scale, xPct, yPct, backdropCanvas) {
   const w = backdropCanvas.width;
   const h = backdropCanvas.height;

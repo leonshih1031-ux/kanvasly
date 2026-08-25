@@ -13,7 +13,7 @@ import {
 import { removeBackground, featherAlpha, loadBgRemovalLibrary } from "@/lib/kanvasly/bgRemoval";
 import { generateBackdrop, generateColorBackdrop } from "@/lib/kanvasly/backdrops";
 import { generateCatalog, compositeAngle, angleTransforms } from "@/lib/kanvasly/catalog";
-import { compositeOnModel } from "@/lib/kanvasly/onModel";
+import { compositeOnModel, compositeOnAIModel } from "@/lib/kanvasly/onModel";
 import { exportToPreset } from "@/lib/kanvasly/exportUtils";
 import { lightingPresets, applyRelighting } from "@/lib/kanvasly/relighting";
 import { compositeProduct } from "@/lib/kanvasly/compositing";
@@ -64,6 +64,7 @@ export default function Studio() {
   const [batchPreviewProduct, setBatchPreviewProduct] = useState(null);
   const [batchProgress, setBatchProgress] = useState(null);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [onModelImage, setOnModelImage] = useState(null);
   const batchImagesInputRef = useRef(null);
   const batchFolderInputRef = useRef(null);
   const [processingText, setProcessingText] = useState("Processing...");
@@ -135,7 +136,9 @@ export default function Studio() {
       if (mode === "studio") {
         if (currentStep === "on-model" && productImage) {
           const bd = ensureBackdrop(state) || generateBackdrop(s.backdrop, canvas.width, canvas.height);
-          const result = compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd);
+          const result = onModelImage
+            ? compositeOnAIModel(productImage, onModelImage, s.onModel.scale, s.onModel.x, s.onModel.y, bd)
+            : compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(result, 0, 0);
         } else if (currentStep === "catalog" && productImage) {
@@ -151,7 +154,7 @@ export default function Studio() {
       }
     });
     return () => cancelAnimationFrame(raf);
-  }, [s, originalImage, productImage, backdropImage, hasImage, mode, currentStep, canvasSize, batchPreviewOriginal, batchPreviewProduct]);
+  }, [s, originalImage, productImage, backdropImage, onModelImage, hasImage, mode, currentStep, canvasSize, batchPreviewOriginal, batchPreviewProduct]);
 
   useEffect(() => {
     if (mode !== "studio" || currentStep !== "catalog" || !productImage) return;
@@ -399,6 +402,49 @@ export default function Studio() {
       setBackdropImage(canvas);
       patch({ backdrop: "photo" });
       notify("AI scene generated — position your product into it");
+    } catch (err) {
+      notify("AI generation failed: " + (err.message || "Unknown error"), "error");
+    } finally {
+      setAiGenerating(false);
+      setProcessing(false);
+      setProcessingText("Processing...");
+    }
+  };
+
+  // ---- AI model generation ----
+  const generateModel = async (description) => {
+    const d = (description || "").trim();
+    if (!d || processing) return;
+    if (!canvasSize.w) {
+      notify("Upload a product image first", "error");
+      return;
+    }
+    setAiGenerating(true);
+    setProcessing(true);
+    setProgress(null);
+    setProcessingText("Generating AI model…");
+    try {
+      const res = await base44.functions.invoke("generateModel", { description: d });
+      const url = res?.data?.url;
+      if (!url) throw new Error("No image returned");
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Could not fetch generated image");
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const img = await new Promise((resolve, reject) => {
+        const im = new Image();
+        im.onload = () => resolve(im);
+        im.onerror = () => reject(new Error("Could not load generated image"));
+        im.src = objUrl;
+      });
+      const { canvas, ctx } = createCanvas(canvasSize.w, canvasSize.h);
+      const scale = Math.max(canvasSize.w / img.width, canvasSize.h / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(img, (canvasSize.w - dw) / 2, (canvasSize.h - dh) / 2, dw, dh);
+      URL.revokeObjectURL(objUrl);
+      setOnModelImage(canvas);
+      notify("AI model generated — position your product onto it");
     } catch (err) {
       notify("AI generation failed: " + (err.message || "Unknown error"), "error");
     } finally {
@@ -679,6 +725,7 @@ export default function Studio() {
       setCatalogAngle({ rotation: 0, scaleY: 1 });
     } else if (step === "on-model") {
       setS((prev) => ({ ...prev, onModel: { ...INITIAL.onModel } }));
+      setOnModelImage(null);
     }
   };
 
@@ -696,6 +743,7 @@ export default function Studio() {
       selectPhotoFile,
       reapplyPhoto,
       generateScene,
+      generateModel,
       generateCatalog: generateCatalogImgs,
       applyOnModel,
       nextStep,
@@ -809,6 +857,7 @@ export default function Studio() {
               onCatalogThumb={onCatalogThumb}
               uploadedPhoto={uploadedPhoto}
               aiGenerating={aiGenerating}
+              onModelImage={onModelImage}
             />
           ) : mode === "retouch" ? (
             <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} />

@@ -39,9 +39,11 @@ export default function StudioControls({
   onCatalogThumb,
   uploadedPhoto,
   aiGenerating,
+  onModelImage,
 }) {
   const photoInputRef = useRef(null);
   const [aiPrompt, setAiPrompt] = useState("");
+  const [modelPrompt, setModelPrompt] = useState("");
   return (
     <div className="kv-panel">
       {/* UPLOAD */}
@@ -307,9 +309,42 @@ export default function StudioControls({
         <div className="kv-control-group">
           <PanelHeader icon={User} title="On-model placement" />
           <Hint>
-            Preview your product on a model silhouette. The anatomical matrix positions
-            products naturally onto generated model forms.
+            Describe the model — hands, pose, skin tone, gesture — and our AI generates a
+            photorealistic model scene. Your prompt is refined by an AI prompt engineer
+            first, so every detail is captured exactly as you describe it. Then position
+            your product onto it with the sliders.
           </Hint>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[12px] text-kanvasly-secondary">Describe the model</label>
+            <textarea
+              className="kv-input"
+              rows={3}
+              placeholder="e.g. two feminine hands with neat manicure, palms open facing up"
+              value={modelPrompt}
+              onChange={(e) => setModelPrompt(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey && modelPrompt.trim() && !aiGenerating) {
+                  e.preventDefault();
+                  actions.generateModel(modelPrompt);
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="kv-btn-primary kv-btn-full"
+              onClick={() => actions.generateModel(modelPrompt)}
+              disabled={!modelPrompt.trim() || aiGenerating}
+            >
+              {aiGenerating ? "Generating…" : "Generate model"}
+            </button>
+            {onModelImage && (
+              <span className="text-[11px] text-kanvasly-accent">
+                AI model active — use the sliders to place your product.
+              </span>
+            )}
+          </div>
+          <div className="h-px bg-white/5 my-1" />
+          <label className="text-[12px] text-kanvasly-secondary">Or use a preset silhouette</label>
           <OptionGrid
             options={modelPoseList}
             value={state.onModel.pose}
@@ -339,7 +374,7 @@ export default function StudioControls({
             unit="%"
             onChange={(v) => setters.setOnModel({ y: v })}
           />
-          <button className="kv-btn-primary kv-btn-full" onClick={actions.applyOnModel}>
+          <button className="kv-btn-secondary kv-btn-full" onClick={actions.applyOnModel}>
             Apply placement
           </button>
         </div>
