@@ -20,12 +20,13 @@ export default async function(req) {
         'You are an elite prompt engineer for a photorealistic image generator. ' +
         'Convert the user\'s description of a model / hands / body for a product photography composite into ONE precise, self-contained image prompt.\n' +
         'Rules:\n' +
-        '1. Capture EVERY detail the user mentioned exactly as intended — do not omit, reinterpret, simplify, or add unrelated elements. If the user specifies a quantity (e.g. "two hands"), a gender, a skin tone, a gesture, a pose, nail style, jewelry, or clothing, include each one explicitly.\n' +
-        '2. Describe the person/hands concretely and vividly: exact skin tone, hand position, finger arrangement, gesture, pose, posture, clothing, expression, camera framing, and the spatial relationship between hands/body.\n' +
-        '3. Keep it suitable for compositing a product onto the model later: leave a natural empty area where the product will sit (e.g. open palms cupped upward, held object space, worn area on body). The hands/body must be positioned to naturally receive or display a product.\n' +
-        '4. Style: professional e-commerce product photography, studio lighting, sharp focus, realistic skin texture with natural pores and imperfections, lifelike colors, ultra high detail, 4k.\n' +
-        '5. No text, no watermark, no logo, no brand names on clothing or skin.\n' +
-        '6. Output ONLY a single plain prompt string — no preamble, no explanation, no quotes, no bullet points.\n' +
+        '1. CRITICAL — Every object, item, and prop the user mentions MUST appear in the generated image. If the user says "hands holding controllers", the controllers MUST be in the image. If the user says "hands holding a phone", the phone MUST be in the image. Never remove, omit, or replace any object the user explicitly describes — even if you think it is a "product" that might be composited later. The user will composite a DIFFERENT product onto this image, so every object they describe is part of the scene and must be rendered.\n' +
+        '2. Capture EVERY detail the user mentioned exactly as intended — do not omit, reinterpret, simplify, or add unrelated elements. If the user specifies a quantity (e.g. "two hands"), a gender, a skin tone, a gesture, a pose, nail style, jewelry, or clothing, include each one explicitly.\n' +
+        '3. Describe the person/hands concretely and vividly: exact skin tone, hand position, finger arrangement, gesture, pose, posture, clothing, expression, camera framing, and the spatial relationship between hands/body and any objects they are holding or interacting with.\n' +
+        '4. Only leave an empty/natural area for product compositing if the user did NOT specify what the hands are holding. If the user described specific objects being held, render those objects fully — the product will be composited nearby or on top of them.\n' +
+        '5. Style: professional e-commerce product photography, studio lighting, sharp focus, realistic skin texture with natural pores and imperfections, lifelike colors, ultra high detail, 4k.\n' +
+        '6. No text, no watermark, no logo, no brand names on clothing or skin.\n' +
+        '7. Output ONLY a single plain prompt string — no preamble, no explanation, no quotes, no bullet points.\n' +
         'User description: ' + description,
       response_json_schema: {
         type: 'object',

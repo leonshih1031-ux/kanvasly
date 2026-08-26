@@ -1,17 +1,5 @@
 import { createCanvas } from "./utils";
-import { createShadowMask } from "./compositing";
-
-// Cache the (opaque) shadow mask per product image + size so the live
-// rotation drag never re-runs the pixel loop on every frame.
-const shadowCache = new WeakMap();
-function getShadowMask(productImg, drawW, drawH) {
-  const key = `${Math.round(drawW)}x${Math.round(drawH)}`;
-  const entry = shadowCache.get(productImg);
-  if (entry && entry.key === key) return entry.canvas;
-  const canvas = createShadowMask(productImg, drawW, drawH);
-  shadowCache.set(productImg, { key, canvas });
-  return canvas;
-}
+import { drawShadowAndReflection } from "./compositing";
 
 export const angleList = [
   { key: "front", label: "Front" },
@@ -46,53 +34,22 @@ function renderAngle(productImg, backdropCanvas, transform, shadow, reflection, 
   const drawH = productImg.height * scale;
   const cx = (w * p.x) / 100;
   const cy = (h * p.y) / 100;
+  const drawX = cx - drawW / 2;
+  const drawY = cy - drawH / 2;
   const t = transform || {};
   const rotation = ((t.rotation || 0) * Math.PI) / 180;
   const scaleY = t.scaleY || 1;
-  const sh = shadow || { opacity: 0, blur: 12, offsetX: 0, offsetY: 15 };
 
-  // Reflection (drawn unrotated, below the product centre).
-  if (reflection && reflection.enabled) {
-    const refScale = reflection.scale / 100;
-    const refH = drawH * refScale;
-    const refCanvas = document.createElement("canvas");
-    refCanvas.width = drawW;
-    refCanvas.height = refH;
-    const refCtx = refCanvas.getContext("2d");
-    refCtx.save();
-    refCtx.translate(0, refH);
-    refCtx.scale(1, -1);
-    refCtx.drawImage(productImg, 0, 0, drawW, drawH);
-    refCtx.restore();
-    const grad = refCtx.createLinearGradient(0, 0, 0, refH);
-    grad.addColorStop(0, "rgba(0,0,0,1)");
-    grad.addColorStop(0.5, "rgba(0,0,0,0.55)");
-    grad.addColorStop(1, "rgba(0,0,0,0)");
-    refCtx.globalCompositeOperation = "destination-in";
-    refCtx.fillStyle = grad;
-    refCtx.fillRect(0, 0, drawW, refH);
-    ctx.save();
-    ctx.globalAlpha = reflection.opacity / 100;
-    ctx.filter = `blur(${reflection.blur || 0}px)`;
-    ctx.drawImage(refCanvas, cx - drawW / 2, cy + drawH / 2);
-    ctx.restore();
-  }
+  // Shadow + reflection drawn in absolute canvas space (unrotated) so they
+  // stay on the ground regardless of the product's rotation/tilt — same
+  // renderer used by every other studio step for visual consistency.
+  drawShadowAndReflection(ctx, productImg, drawX, drawY, drawW, drawH, shadow, reflection);
 
+  // Product drawn rotated/tilted on top of the shadow.
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rotation);
   ctx.scale(1, scaleY);
-  if (sh.enabled !== false && sh.opacity > 0) {
-    ctx.save();
-    ctx.globalAlpha = (sh.opacity / 100) * 0.85;
-    ctx.filter = `blur(${sh.blur}px)`;
-    ctx.drawImage(
-      getShadowMask(productImg, drawW, drawH),
-      -drawW / 2 + (sh.offsetX || 0),
-      -drawH / 2 + (sh.offsetY || 15)
-    );
-    ctx.restore();
-  }
   ctx.drawImage(productImg, -drawW / 2, -drawH / 2, drawW, drawH);
   ctx.restore();
   return canvas;
