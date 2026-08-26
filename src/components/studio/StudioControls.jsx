@@ -206,38 +206,48 @@ export default function StudioControls({
             onChange={(v) => setters.setProduct({ scale: v })}
           />
           <div className="h-px bg-white/5 my-1" />
-          <Slider
-            label="Shadow opacity"
-            value={state.shadow.opacity}
-            min={0}
-            max={100}
-            unit="%"
-            onChange={(v) => setters.setShadow({ opacity: v })}
-          />
-          <Slider
-            label="Shadow blur"
-            value={state.shadow.blur}
-            min={0}
-            max={60}
-            unit="px"
-            onChange={(v) => setters.setShadow({ blur: v })}
-          />
-          <Slider
-            label="Shadow offset X"
-            value={state.shadow.offsetX}
-            min={-50}
-            max={50}
-            unit="px"
-            onChange={(v) => setters.setShadow({ offsetX: v })}
-          />
-          <Slider
-            label="Shadow offset Y"
-            value={state.shadow.offsetY}
-            min={0}
-            max={80}
-            unit="px"
-            onChange={(v) => setters.setShadow({ offsetY: v })}
-          />
+          <label className="kv-checkbox">
+            <input
+              type="checkbox"
+              checked={state.shadow.enabled}
+              onChange={(e) => setters.setShadow({ enabled: e.target.checked })}
+            />
+            Add shadow
+          </label>
+          <div className={cn("flex flex-col gap-3", !state.shadow.enabled && "kv-disabled")}>
+            <Slider
+              label="Shadow opacity"
+              value={state.shadow.opacity}
+              min={0}
+              max={100}
+              unit="%"
+              onChange={(v) => setters.setShadow({ opacity: v })}
+            />
+            <Slider
+              label="Shadow blur"
+              value={state.shadow.blur}
+              min={0}
+              max={60}
+              unit="px"
+              onChange={(v) => setters.setShadow({ blur: v })}
+            />
+            <Slider
+              label="Shadow offset X"
+              value={state.shadow.offsetX}
+              min={-50}
+              max={50}
+              unit="px"
+              onChange={(v) => setters.setShadow({ offsetX: v })}
+            />
+            <Slider
+              label="Shadow offset Y"
+              value={state.shadow.offsetY}
+              min={0}
+              max={80}
+              unit="px"
+              onChange={(v) => setters.setShadow({ offsetY: v })}
+            />
+          </div>
           <label className="kv-checkbox">
             <input
               type="checkbox"

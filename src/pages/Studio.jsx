@@ -26,7 +26,7 @@ import { base44 } from "@/api/base44Client";
 const INITIAL = {
   mode: "studio",
   backdrop: "studio-white",
-  shadow: { opacity: 50, blur: 20, offsetX: 0, offsetY: 15 },
+  shadow: { enabled: true, opacity: 50, blur: 20, offsetX: 0, offsetY: 15 },
   reflection: { enabled: false, opacity: 30, scale: 100, blur: 2 },
   product: { x: 50, y: 50, scale: 100 },
   onModel: { pose: "standing", scale: 100, x: 50, y: 50 },
@@ -86,6 +86,16 @@ export default function Studio() {
   const setCustomColor = (v) => patch({ customColor: v });
   const catalogAngleRef = useRef({ rotation: 0, scaleY: 1 });
   useEffect(() => { catalogAngleRef.current = s.catalogAngle; }, [s.catalogAngle]);
+  const catalogDrawStateRef = useRef({});
+  const catalogStateVersionRef = useRef(0);
+  const catalogPresetRef = useRef(null);
+  useEffect(() => {
+    catalogDrawStateRef.current = {
+      backdropImage, shadow: s.shadow, reflection: s.reflection,
+      product: s.product, backdrop: s.backdrop,
+    };
+    catalogStateVersionRef.current++;
+  });
 
   // ---- size the canvas element once it mounts / dimensions change ----
   useEffect(() => {
@@ -141,11 +151,8 @@ export default function Studio() {
             : compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(result, 0, 0);
-        } else if (currentStep === "catalog" && productImage) {
-          const bd = backdropImage || generateBackdrop(s.backdrop, canvas.width, canvas.height);
-          const out = compositeAngle(productImage, bd, s.catalogAngle, s.shadow, s.reflection, s.product);
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(out, 0, 0);
+        } else if (currentStep === "catalog") {
+          // Drawing handled by the smooth rotation RAF effect below
         } else {
           renderStudio(ctx, canvas, state);
         }
@@ -160,80 +167,128 @@ export default function Studio() {
     if (mode !== "studio" || currentStep !== "catalog" || !productImage) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const pointers = new Map();
-    let singleDrag = false;
-    let startX = 0;
-    let startY = 0;
-    let start = { rotation: 0, scaleY: 1 };
-    let lastGestureAngle = 0;
-    let gestureBase = 0;
-    let gestureAccum = 0;
+    const ctx = canvas.getContext("2d");
+    // Target angle (what the user aims at) vs current angle (what's displayed).
+    // The RAF loop eases current → target for buttery-smooth, fluid motion.
+    const target = { rotation: catalogAngleRef.current.rotation, scaleY: catalogAngleRef.current.scaleY };
+    const current = { ...target };
+    let velocity = { rot: 0, scale: 0 };
+    let dragging = false;
+    let lastX = 0, lastY = 0;
+    let rafId;
+    let needsDraw = true;
+    let lastStateVersion = -1;
 
-    const onDown = (e) => {
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
-      if (pointers.size === 1) {
-        singleDrag = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        start = { ...catalogAngleRef.current };
-        canvas.style.cursor = "grabbing";
-      } else if (pointers.size === 2) {
-        singleDrag = false;
-        const [p1, p2] = [...pointers.values()];
-        lastGestureAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-        gestureBase = catalogAngleRef.current.rotation;
-        gestureAccum = 0;
+    const draw = () => {
+      const ds = catalogDrawStateRef.current;
+      const bd = ds.backdropImage || generateBackdrop(ds.backdrop, canvas.width, canvas.height);
+      const out = compositeAngle(
+        productImage, bd,
+        { rotation: current.rotation, scaleY: current.scaleY },
+        ds.shadow, ds.reflection, ds.product
+      );
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(out, 0, 0);
+    };
+
+    const tick = () => {
+      // Apply preset snap (from clicking an angle button)
+      if (catalogPresetRef.current) {
+        target.rotation = catalogPresetRef.current.rotation;
+        target.scaleY = catalogPresetRef.current.scaleY;
+        catalogPresetRef.current = null;
+        needsDraw = true;
       }
+      // Redraw when upstream state (shadow, reflection, product, backdrop) changes
+      if (catalogStateVersionRef.current !== lastStateVersion) {
+        lastStateVersion = catalogStateVersionRef.current;
+        needsDraw = true;
+      }
+      // Momentum: continue spinning after release, decaying smoothly
+      if (!dragging) {
+        if (Math.abs(velocity.rot) > 0.005 || Math.abs(velocity.scale) > 0.0005) {
+          target.rotation = Math.max(-180, Math.min(180, target.rotation + velocity.rot));
+          target.scaleY = Math.max(0.5, Math.min(1.1, target.scaleY + velocity.scale));
+          velocity.rot *= 0.93;
+          velocity.scale *= 0.93;
+          needsDraw = true;
+        }
+      }
+      // Ease current toward target (lerp for fluid, lag-free follow)
+      const lerp = 0.28;
+      const dr = target.rotation - current.rotation;
+      const ds = target.scaleY - current.scaleY;
+      if (Math.abs(dr) > 0.02 || Math.abs(ds) > 0.001) {
+        current.rotation += dr * lerp;
+        current.scaleY += ds * lerp;
+        needsDraw = true;
+      } else {
+        current.rotation = target.rotation;
+        current.scaleY = target.scaleY;
+      }
+      if (needsDraw) { draw(); needsDraw = false; }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+
+    // --- Pointer drag (mouse / single-finger touch) ---
+    const onDown = (e) => {
+      dragging = true;
+      lastX = e.clientX; lastY = e.clientY;
+      velocity = { rot: 0, scale: 0 };
+      canvas.style.cursor = "grabbing";
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
     };
     const onMove = (e) => {
-      if (!pointers.has(e.pointerId)) return;
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (!dragging) return;
+      const rect = canvas.getBoundingClientRect();
+      const dx = (e.clientX - lastX) / rect.width;
+      const dy = (e.clientY - lastY) / rect.height;
       const fine = e.shiftKey ? 0.25 : 1;
-      if (pointers.size === 2) {
-        const [p1, p2] = [...pointers.values()];
-        const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
-        let delta = ang - lastGestureAngle;
-        if (delta > Math.PI) delta -= 2 * Math.PI;
-        if (delta < -Math.PI) delta += 2 * Math.PI;
-        gestureAccum += delta;
-        lastGestureAngle = ang;
-        const rotation = Math.max(-180, Math.min(180, gestureBase + gestureAccum * (180 / Math.PI) * fine));
-        setCatalogAngle({ rotation, scaleY: catalogAngleRef.current.scaleY });
-      } else if (singleDrag) {
-        const rect = canvas.getBoundingClientRect();
-        const dx = (e.clientX - startX) / rect.width;
-        const dy = (e.clientY - startY) / rect.height;
-        const rotation = Math.max(-180, Math.min(180, start.rotation + dx * 80 * fine));
-        const scaleY = Math.max(0.5, Math.min(1.1, start.scaleY - dy * 0.6));
-        setCatalogAngle({ rotation, scaleY });
-      }
+      const dRot = dx * 80 * fine;
+      const dScale = -dy * 0.6 * fine;
+      target.rotation = Math.max(-180, Math.min(180, target.rotation + dRot));
+      target.scaleY = Math.max(0.5, Math.min(1.1, target.scaleY + dScale));
+      velocity.rot = velocity.rot * 0.6 + dRot * 0.4;
+      velocity.scale = velocity.scale * 0.6 + dScale * 0.4;
+      lastX = e.clientX; lastY = e.clientY;
     };
     const onUp = (e) => {
-      pointers.delete(e.pointerId);
+      dragging = false;
+      canvas.style.cursor = "grab";
       try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
-      if (pointers.size === 1) {
-        const [p] = [...pointers.values()];
-        singleDrag = true;
-        startX = p.x;
-        startY = p.y;
-        start = { ...catalogAngleRef.current };
-      } else if (pointers.size === 0) {
-        singleDrag = false;
-        canvas.style.cursor = "grab";
-      }
     };
+
+    // --- Two-finger trackpad drag (wheel events) ---
+    // Horizontal swipe → rotation, vertical swipe → tilt (scaleY).
+    const onWheel = (e) => {
+      e.preventDefault();
+      const fine = e.shiftKey ? 0.25 : 1;
+      let dx = e.deltaX, dy = e.deltaY;
+      if (e.deltaMode === 1) { dx *= 16; dy *= 16; }
+      const dRot = -dx * 0.35 * fine;
+      const dScale = dy * 0.004 * fine;
+      target.rotation = Math.max(-180, Math.min(180, target.rotation + dRot));
+      target.scaleY = Math.max(0.5, Math.min(1.1, target.scaleY + dScale));
+      velocity.rot = velocity.rot * 0.6 + dRot * 0.4;
+      velocity.scale = velocity.scale * 0.6 + dScale * 0.4;
+    };
+
     canvas.style.cursor = "grab";
     canvas.addEventListener("pointerdown", onDown);
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerup", onUp);
     canvas.addEventListener("pointercancel", onUp);
+    canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => {
-      canvas.style.cursor = "";
+      cancelAnimationFrame(rafId);
       canvas.removeEventListener("pointerdown", onDown);
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("pointercancel", onUp);
+      canvas.removeEventListener("wheel", onWheel);
+      canvas.style.cursor = "";
+      setCatalogAngle({ rotation: current.rotation, scaleY: current.scaleY });
     };
   }, [mode, currentStep, productImage]);
 
@@ -630,7 +685,9 @@ export default function Studio() {
   const onCatalogThumb = (a) => {
     const key = a.key || a.angle;
     const t = angleTransforms[key];
-    setCatalogAngle(t ? { rotation: t.rotation || 0, scaleY: t.scaleY || 1 } : { rotation: 0, scaleY: 1 });
+    const newAngle = t ? { rotation: t.rotation || 0, scaleY: t.scaleY || 1 } : { rotation: 0, scaleY: 1 };
+    setCatalogAngle(newAngle);
+    catalogPresetRef.current = newAngle;
   };
 
   // ---- on-model (live preview via render effect) ----

@@ -19,7 +19,7 @@ export function createShadowMask(productImg, w, h) {
 // and export.  All coordinates are absolute canvas-space.
 export function drawShadowAndReflection(ctx, productImg, drawX, drawY, drawW, drawH, shadow, reflection) {
   // Cast shadow: blurred silhouette with a ground-perspective skew + offset.
-  if (shadow && shadow.opacity > 0) {
+  if (shadow && shadow.enabled !== false && shadow.opacity > 0) {
     const shadowCanvas = createShadowMask(productImg, drawW, drawH);
     ctx.save();
     ctx.globalAlpha = (shadow.opacity / 100) * 0.85;

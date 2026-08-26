@@ -82,7 +82,7 @@ function renderAngle(productImg, backdropCanvas, transform, shadow, reflection, 
   ctx.translate(cx, cy);
   ctx.rotate(rotation);
   ctx.scale(1, scaleY);
-  if (sh.opacity > 0) {
+  if (sh.enabled !== false && sh.opacity > 0) {
     ctx.save();
     ctx.globalAlpha = (sh.opacity / 100) * 0.85;
     ctx.filter = `blur(${sh.blur}px)`;
