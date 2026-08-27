@@ -21,11 +21,13 @@ export const angleTransforms = {
 // Renders the product onto a backdrop with a rotation + tilt transform
 // (used for the live, cursor-controlled angle in the catalog step).
 // Shadow & reflection from the Effects step are applied so adjustments persist.
-function renderAngle(productImg, backdropCanvas, transform, shadow, reflection, product) {
+function renderAngle(productImg, backdropCanvas, transform, shadow, reflection, product, backdropBlur = 0) {
   const w = backdropCanvas.width;
   const h = backdropCanvas.height;
   const { canvas, ctx } = createCanvas(w, h);
+  if (backdropBlur > 0) ctx.filter = `blur(${backdropBlur}px)`;
   ctx.drawImage(backdropCanvas, 0, 0);
+  ctx.filter = "none";
   if (!productImg) return canvas;
   const p = product || { x: 50, y: 50, scale: 100 };
   const baseScale = Math.min((w * 0.5) / productImg.width, (h * 0.5) / productImg.height);
@@ -55,14 +57,14 @@ function renderAngle(productImg, backdropCanvas, transform, shadow, reflection, 
   return canvas;
 }
 
-export function compositeAngle(productImg, backdropCanvas, transform, shadow, reflection, product) {
-  return renderAngle(productImg, backdropCanvas, transform, shadow, reflection, product);
+export function compositeAngle(productImg, backdropCanvas, transform, shadow, reflection, product, backdropBlur = 0) {
+  return renderAngle(productImg, backdropCanvas, transform, shadow, reflection, product, backdropBlur);
 }
 
-export function generateCatalog(productImg, backdropCanvas, shadow, reflection, product) {
+export function generateCatalog(productImg, backdropCanvas, shadow, reflection, product, backdropBlur = 0) {
   if (!productImg) return [];
   return angleList.map(({ key, label }) => {
-    const canvas = renderAngle(productImg, backdropCanvas, angleTransforms[key], shadow, reflection, product);
+    const canvas = renderAngle(productImg, backdropCanvas, angleTransforms[key], shadow, reflection, product, backdropBlur);
     return { angle: key, label, dataURL: canvas.toDataURL("image/png") };
   });
 }

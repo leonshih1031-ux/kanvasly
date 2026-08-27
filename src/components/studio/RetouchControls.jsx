@@ -1,5 +1,5 @@
 import React from "react";
-import { Wand2, Aperture, SunMedium, Smile, Download } from "lucide-react";
+import { Wand2, Aperture, SunMedium, Sparkles, Download } from "lucide-react";
 import Slider from "./Slider";
 import OptionGrid from "./OptionGrid";
 import { lightingPresetList } from "@/lib/kanvasly/relighting";
@@ -50,10 +50,10 @@ export default function RetouchControls({ tool, state, actions, setters }) {
       {/* BOKEH */}
       {tool === "bokeh" && (
         <div className="kv-control-group">
-          <PanelHeader icon={Aperture} title="DSLR bokeh" />
+          <PanelHeader icon={Aperture} title="Depth of field" />
           <Hint>
-            Simulate shallow depth-of-field. The focus area stays sharp while the background
-            blurs naturally.
+            Simulate shallow depth-of-field. Drag the focus point sliders to move the
+            sharp area — the rest blurs naturally.
           </Hint>
           <Slider
             label="Blur strength"
@@ -71,6 +71,22 @@ export default function RetouchControls({ tool, state, actions, setters }) {
             unit="%"
             onChange={(v) => setters.setBokeh({ focusScale: v })}
           />
+          <Slider
+            label="Focus point X"
+            value={state.bokeh.focusX}
+            min={0}
+            max={100}
+            unit="%"
+            onChange={(v) => setters.setBokeh({ focusX: v })}
+          />
+          <Slider
+            label="Focus point Y"
+            value={state.bokeh.focusY}
+            min={0}
+            max={100}
+            unit="%"
+            onChange={(v) => setters.setBokeh({ focusY: v })}
+          />
           <button className="kv-btn-primary kv-btn-full" onClick={actions.applyBokeh}>
             Apply bokeh
           </button>
@@ -80,10 +96,10 @@ export default function RetouchControls({ tool, state, actions, setters }) {
       {/* RELIGHT */}
       {tool === "relight" && (
         <div className="kv-control-group">
-          <PanelHeader icon={SunMedium} title="Weather & lighting" />
+          <PanelHeader icon={SunMedium} title="Color & lighting" />
           <Hint>
-            Swap lighting conditions and weather. Adjust color temperature, brightness, and
-            vignette.
+            Adjust color grading and lighting. Presets set a starting point — your manual
+            adjustments are preserved.
           </Hint>
           <OptionGrid
             options={lightingPresetList}
@@ -122,6 +138,13 @@ export default function RetouchControls({ tool, state, actions, setters }) {
             onChange={(v) => setters.setRelight({ temperature: v, preset: "custom" })}
           />
           <Slider
+            label="Tint"
+            value={state.relight.tint}
+            min={-50}
+            max={50}
+            onChange={(v) => setters.setRelight({ tint: v, preset: "custom" })}
+          />
+          <Slider
             label="Vignette"
             value={state.relight.vignette}
             min={0}
@@ -129,44 +152,60 @@ export default function RetouchControls({ tool, state, actions, setters }) {
             unit="%"
             onChange={(v) => setters.setRelight({ vignette: v, preset: "custom" })}
           />
+          <Slider
+            label="Vignette softness"
+            value={state.relight.vignetteShape}
+            min={0}
+            max={100}
+            unit="%"
+            onChange={(v) => setters.setRelight({ vignetteShape: v, preset: "custom" })}
+          />
           <button className="kv-btn-secondary kv-btn-full" onClick={actions.resetLighting}>
             Reset to neutral
           </button>
         </div>
       )}
 
-      {/* RETOUCH */}
+      {/* PRODUCT RETOUCH */}
       {tool === "retouch" && (
         <div className="kv-control-group">
-          <PanelHeader icon={Smile} title="Portrait retouch" />
+          <PanelHeader icon={Sparkles} title="Product retouch" />
           <Hint>
-            Smooth skin, whiten teeth, and remove blemishes while preserving natural skin
-            texture and hair detail.
+            Clean up product photos: remove dust spots, reduce noise, sharpen details, and
+            auto-correct color casts.
           </Hint>
+          <label className="kv-checkbox">
+            <input
+              type="checkbox"
+              checked={state.retouch.dustRemoval}
+              onChange={(e) => setters.setRetouch({ dustRemoval: e.target.checked })}
+            />
+            Dust removal
+          </label>
+          <label className="kv-checkbox">
+            <input
+              type="checkbox"
+              checked={state.retouch.colorCorrect}
+              onChange={(e) => setters.setRetouch({ colorCorrect: e.target.checked })}
+            />
+            Auto color correction
+          </label>
           <Slider
-            label="Skin smoothing"
-            value={state.retouch.smoothing}
+            label="Denoise"
+            value={state.retouch.denoise}
             min={0}
             max={100}
             unit="%"
-            onChange={(v) => setters.setRetouch({ smoothing: v })}
+            onChange={(v) => setters.setRetouch({ denoise: v })}
           />
-          <label className="kv-checkbox">
-            <input
-              type="checkbox"
-              checked={state.retouch.teethWhitening}
-              onChange={(e) => setters.setRetouch({ teethWhitening: e.target.checked })}
-            />
-            Teeth whitening
-          </label>
-          <label className="kv-checkbox">
-            <input
-              type="checkbox"
-              checked={state.retouch.blemishRemoval}
-              onChange={(e) => setters.setRetouch({ blemishRemoval: e.target.checked })}
-            />
-            Blemish removal
-          </label>
+          <Slider
+            label="Sharpen"
+            value={state.retouch.sharpen}
+            min={0}
+            max={100}
+            unit="%"
+            onChange={(v) => setters.setRetouch({ sharpen: v })}
+          />
           <button className="kv-btn-primary kv-btn-full" onClick={actions.applyRetouch}>
             Apply retouch
           </button>
@@ -177,7 +216,7 @@ export default function RetouchControls({ tool, state, actions, setters }) {
       {tool === "export" && (
         <div className="kv-control-group">
           <PanelHeader icon={Download} title="Export" />
-          <Hint>Export your enhanced photo.</Hint>
+          <Hint>Export your enhanced photo. Crop-to-fill ensures no letterboxing.</Hint>
           <div className="flex flex-col gap-1.5">
             {retouchExportList.map((key) => {
               const preset = exportPresets[key];
@@ -226,6 +265,16 @@ export default function RetouchControls({ tool, state, actions, setters }) {
               <option value="image/webp">WebP</option>
             </select>
           </div>
+          {state.exportFormat === "image/jpeg" && (
+            <Slider
+              label="JPEG quality"
+              value={state.exportQuality}
+              min={50}
+              max={100}
+              unit="%"
+              onChange={(v) => setters.setExportQuality(v)}
+            />
+          )}
           <button className="kv-btn-primary kv-btn-full" onClick={actions.export}>
             Download image
           </button>

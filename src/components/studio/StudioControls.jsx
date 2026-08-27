@@ -116,6 +116,14 @@ export default function StudioControls({
               </span>
             </div>
           </div>
+          <Slider
+            label="Backdrop blur"
+            value={state.backdropBlur}
+            min={0}
+            max={20}
+            unit="px"
+            onChange={(v) => setters.setBackdropBlur(v)}
+          />
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-kanvasly-secondary">AI scene</label>
             <input
@@ -443,6 +451,16 @@ export default function StudioControls({
               <option value="image/webp">WebP</option>
             </select>
           </div>
+          {state.exportFormat === "image/jpeg" && (
+            <Slider
+              label="JPEG quality"
+              value={state.exportQuality}
+              min={50}
+              max={100}
+              unit="%"
+              onChange={(v) => setters.setExportQuality(v)}
+            />
+          )}
           <button className="kv-btn-primary kv-btn-full" onClick={actions.export}>
             Download image
           </button>

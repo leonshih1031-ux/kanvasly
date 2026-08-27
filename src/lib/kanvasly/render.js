@@ -20,7 +20,8 @@ export function renderStudio(ctx, canvas, state) {
       state.backdropImage,
       state.shadow,
       state.reflection,
-      state.product
+      state.product,
+      state.backdropBlur || 0
     );
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(composited, 0, 0);
@@ -31,20 +32,21 @@ export function renderStudio(ctx, canvas, state) {
 }
 
 // Renders the Enhancement Suite result onto the main canvas.
-// If the background was removed, the isolated product is the base; otherwise
-// the original photo is used so bokeh/relight/retouch apply to the full image.
 export function renderRetouch(ctx, canvas, state) {
   if (!canvas || !ctx || !state.originalImage) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const base = state.productImage || state.originalImage;
   ctx.drawImage(base, 0, 0, canvas.width, canvas.height);
   applyRelighting(canvas, state.relight);
-  if (state.bokeh.applied) applyBokeh(canvas, state.bokeh.blur, state.bokeh.focusScale);
+  if (state.bokeh.applied) {
+    applyBokeh(canvas, state.bokeh.blur, state.bokeh.focusScale, state.bokeh.focusX, state.bokeh.focusY);
+  }
   if (state.retouch.applied) {
     applyRetouch(canvas, {
-      smoothing: state.retouch.smoothing,
-      teethWhitening: state.retouch.teethWhitening,
-      blemishRemoval: state.retouch.blemishRemoval,
+      dustRemoval: state.retouch.dustRemoval,
+      sharpen: state.retouch.sharpen,
+      denoise: state.retouch.denoise,
+      colorCorrect: state.retouch.colorCorrect,
     });
   }
 }

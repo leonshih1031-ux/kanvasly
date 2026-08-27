@@ -19,6 +19,9 @@ export const studioExportList = [
 
 export const retouchExportList = ["instagram-square", "instagram-story", "custom"];
 
+// Crop-to-fill export: the source is scaled to FILL the target dimensions
+// (Math.max, not Math.min), so there's no letterboxing. Excess is cropped.
+// JPEG gets a white background fill (no transparency support).
 export function exportToPreset(sourceCanvas, presetKey, format, quality = 0.92, customW, customH, name) {
   let targetW;
   let targetH;
@@ -36,12 +39,14 @@ export function exportToPreset(sourceCanvas, presetKey, format, quality = 0.92, 
   exportCanvas.height = targetH;
   const ectx = exportCanvas.getContext("2d");
 
+  // JPEG: fill white (no transparency). PNG/WebP: keep transparency.
   if (format === "image/jpeg") {
     ectx.fillStyle = "#FFFFFF";
     ectx.fillRect(0, 0, targetW, targetH);
   }
 
-  const scale = Math.min(targetW / sourceCanvas.width, targetH / sourceCanvas.height);
+  // Crop-to-fill: scale to cover the target, center, and crop excess.
+  const scale = Math.max(targetW / sourceCanvas.width, targetH / sourceCanvas.height);
   const drawW = sourceCanvas.width * scale;
   const drawH = sourceCanvas.height * scale;
   ectx.drawImage(sourceCanvas, (targetW - drawW) / 2, (targetH - drawH) / 2, drawW, drawH);

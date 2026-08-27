@@ -1,3 +1,4 @@
+// Kanvasly Studio — AI product photography workspace
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import Topbar from "@/components/studio/Topbar";
@@ -33,12 +34,14 @@ const INITIAL = {
   catalogAngle: { rotation: 0, scaleY: 1 },
   customColor: "#7B6FE0",
   bgModel: "isnet_fp16",
-  bokeh: { blur: 15, focusScale: 60, applied: false },
-  relight: { preset: "neutral", brightness: 100, contrast: 100, saturation: 100, temperature: 0, vignette: 0 },
-  retouch: { smoothing: 50, teethWhitening: false, blemishRemoval: false, applied: false },
+  backdropBlur: 0,
+  bokeh: { blur: 15, focusScale: 60, focusX: 50, focusY: 50, applied: false },
+  relight: { preset: "neutral", brightness: 100, contrast: 100, saturation: 100, temperature: 0, tint: 0, vignette: 0, vignetteShape: 50 },
+  retouch: { dustRemoval: false, sharpen: 0, denoise: 0, colorCorrect: false, applied: false },
   feather: 2,
   exportPreset: "shopify-main",
   exportFormat: "image/png",
+  exportQuality: 92,
   customW: 1080,
   customH: 1080,
 };
@@ -92,7 +95,7 @@ export default function Studio() {
   useEffect(() => {
     catalogDrawStateRef.current = {
       backdropImage, shadow: s.shadow, reflection: s.reflection,
-      product: s.product, backdrop: s.backdrop,
+      product: s.product, backdrop: s.backdrop, backdropBlur: s.backdropBlur,
     };
     catalogStateVersionRef.current++;
   });
@@ -125,7 +128,7 @@ export default function Studio() {
             : generateBackdrop(s.backdrop, w, h);
         ctx.clearRect(0, 0, w, h);
         if (batchPreviewProduct) {
-          const comp = compositeProduct(batchPreviewProduct, bd, s.shadow, s.reflection, s.product);
+          const comp = compositeProduct(batchPreviewProduct, bd, s.shadow, s.reflection, s.product, s.backdropBlur || 0);
           ctx.drawImage(comp, 0, 0);
         } else if (batchPreviewOriginal) {
           ctx.drawImage(batchPreviewOriginal, 0, 0, w, h);
@@ -185,7 +188,7 @@ export default function Studio() {
       const out = compositeAngle(
         productImage, bd,
         { rotation: current.rotation, scaleY: current.scaleY },
-        ds.shadow, ds.reflection, ds.product
+        ds.shadow, ds.reflection, ds.product, ds.backdropBlur || 0
       );
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(out, 0, 0);
@@ -637,7 +640,7 @@ export default function Studio() {
         const comp = compositeProduct(product, bd, s.shadow, s.reflection, s.product);
         applyRelighting(comp, s.relight);
         const base = item.name.replace(/\.[^.]+$/, "");
-        exportToPreset(comp, s.exportPreset, s.exportFormat, 0.92, s.customW, s.customH, base);
+        exportToPreset(comp, s.exportPreset, s.exportFormat, (s.exportQuality || 92) / 100, s.customW, s.customH, base);
         done++;
         setBatchItems((prev) =>
           prev.map((it, idx) => (idx === i ? { ...it, status: "done" } : it))
@@ -671,7 +674,7 @@ export default function Studio() {
     setProcessingText("Generating angles...");
     setTimeout(() => {
       try {
-        const angles = generateCatalog(productImage, bd, s.shadow, s.reflection, s.product);
+        const angles = generateCatalog(productImage, bd, s.shadow, s.reflection, s.product, s.backdropBlur || 0);
         setCatalogAngles(angles);
         notify("Catalog generated");
       } catch (err) {
@@ -730,7 +733,7 @@ export default function Studio() {
       notify("No image to export", "error");
       return;
     }
-    exportToPreset(canvasRef.current, s.exportPreset, s.exportFormat, 0.92, s.customW, s.customH);
+    exportToPreset(canvasRef.current, s.exportPreset, s.exportFormat, (s.exportQuality || 92) / 100, s.customW, s.customH);
     notify("Image exported successfully");
   };
 
@@ -767,7 +770,7 @@ export default function Studio() {
   // Discard the current step's adjustments, then advance.
   const resetStepState = (step) => {
     if (step === "backdrop") {
-      patch({ backdrop: "studio-white", customColor: "#7B6FE0" });
+      patch({ backdrop: "studio-white", customColor: "#7B6FE0", backdropBlur: 0 });
       setUploadedPhoto(null);
       uploadedPhotoCanvasRef.current = null;
       if (canvasSize.w) setBackdropImage(generateBackdrop("studio-white", canvasSize.w, canvasSize.h));
@@ -842,6 +845,8 @@ export default function Studio() {
     setCustomColor,
     setFeather: (v) => patch({ feather: v }),
     setExportFormat: (v) => patch({ exportFormat: v }),
+    setExportQuality: (v) => patch({ exportQuality: v }),
+    setBackdropBlur: (v) => patch({ backdropBlur: v }),
     setCustomW: (v) => patch({ customW: v }),
     setCustomH: (v) => patch({ customH: v }),
   };
