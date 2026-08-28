@@ -299,7 +299,9 @@ export default function Studio() {
       canvas.removeEventListener("pointercancel", onUp);
       canvas.removeEventListener("wheel", onWheel);
       canvas.style.cursor = "";
-      setCatalogAngle({ rotation: current.rotation, scaleY: current.scaleY });
+      // Save the TARGET angle (what the user aimed at), not the lagging eased
+      // `current` value — otherwise navigating away mid-ease resets the angle.
+      setCatalogAngle({ rotation: target.rotation, scaleY: target.scaleY });
     };
   }, [mode, currentStep, productImage]);
 
