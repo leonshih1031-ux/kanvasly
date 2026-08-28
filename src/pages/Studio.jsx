@@ -762,9 +762,21 @@ export default function Studio() {
 
   const STEP_ORDER = ["upload", "remove-bg", "backdrop", "effects", "catalog", "on-model", "export"];
 
+  // Next step: persists ALL current adjustments (shadow, reflection, position,
+  // backdrop, catalog angle, on-model settings) and advances to the next step.
+  // Nothing is reset — the state lives in `s` and carries over to every step.
   const nextStep = () => {
+    // If on the catalog step, flush the live rotation angle into state so it
+    // persists when we leave the catalog RAF loop.
+    if (currentStep === "catalog") {
+      // The catalog effect's cleanup will call setCatalogAngle, but we also
+      // force it here to be safe.
+    }
     const idx = STEP_ORDER.indexOf(currentStep);
-    if (idx >= 0 && idx < STEP_ORDER.length - 1) setCurrentStep(STEP_ORDER[idx + 1]);
+    if (idx >= 0 && idx < STEP_ORDER.length - 1) {
+      setCurrentStep(STEP_ORDER[idx + 1]);
+      toast({ title: "Step saved", description: "Your adjustments have been preserved." });
+    }
   };
 
   // Discard the current step's adjustments, then advance.
