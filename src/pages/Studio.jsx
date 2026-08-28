@@ -92,6 +92,9 @@ export default function Studio() {
   const catalogDrawStateRef = useRef({});
   const catalogStateVersionRef = useRef(0);
   const catalogPresetRef = useRef(null);
+  // Live angle from the catalog RAF loop — the user's actual intended rotation,
+  // updated in real time. Read by nextStep() to persist before navigating.
+  const catalogLiveAngleRef = useRef({ rotation: 0, scaleY: 1 });
   useEffect(() => {
     catalogDrawStateRef.current = {
       backdropImage, shadow: s.shadow, reflection: s.reflection,
@@ -175,6 +178,7 @@ export default function Studio() {
     // The RAF loop eases current → target for buttery-smooth, fluid motion.
     const target = { rotation: catalogAngleRef.current.rotation, scaleY: catalogAngleRef.current.scaleY };
     const current = { ...target };
+    catalogLiveAngleRef.current = { ...target };
     let velocity = { rot: 0, scale: 0 };
     let dragging = false;
     let lastX = 0, lastY = 0;
@@ -200,6 +204,7 @@ export default function Studio() {
         target.rotation = catalogPresetRef.current.rotation;
         target.scaleY = catalogPresetRef.current.scaleY;
         catalogPresetRef.current = null;
+        catalogLiveAngleRef.current = { ...target };
         needsDraw = true;
       }
       // Redraw when upstream state (shadow, reflection, product, backdrop) changes
@@ -212,6 +217,7 @@ export default function Studio() {
         if (Math.abs(velocity.rot) > 0.005 || Math.abs(velocity.scale) > 0.0005) {
           target.rotation = Math.max(-180, Math.min(180, target.rotation + velocity.rot));
           target.scaleY = Math.max(0.5, Math.min(1.1, target.scaleY + velocity.scale));
+          catalogLiveAngleRef.current = { rotation: target.rotation, scaleY: target.scaleY };
           velocity.rot *= 0.93;
           velocity.scale *= 0.93;
           needsDraw = true;
@@ -252,6 +258,7 @@ export default function Studio() {
       const dScale = -dy * 0.6 * fine;
       target.rotation = Math.max(-180, Math.min(180, target.rotation + dRot));
       target.scaleY = Math.max(0.5, Math.min(1.1, target.scaleY + dScale));
+      catalogLiveAngleRef.current = { rotation: target.rotation, scaleY: target.scaleY };
       velocity.rot = velocity.rot * 0.6 + dRot * 0.4;
       velocity.scale = velocity.scale * 0.6 + dScale * 0.4;
       lastX = e.clientX; lastY = e.clientY;
@@ -273,6 +280,7 @@ export default function Studio() {
       const dScale = dy * 0.004 * fine;
       target.rotation = Math.max(-180, Math.min(180, target.rotation + dRot));
       target.scaleY = Math.max(0.5, Math.min(1.1, target.scaleY + dScale));
+      catalogLiveAngleRef.current = { rotation: target.rotation, scaleY: target.scaleY };
       velocity.rot = velocity.rot * 0.6 + dRot * 0.4;
       velocity.scale = velocity.scale * 0.6 + dScale * 0.4;
     };
@@ -769,8 +777,7 @@ export default function Studio() {
     // If on the catalog step, flush the live rotation angle into state so it
     // persists when we leave the catalog RAF loop.
     if (currentStep === "catalog") {
-      // The catalog effect's cleanup will call setCatalogAngle, but we also
-      // force it here to be safe.
+      setCatalogAngle({ ...catalogLiveAngleRef.current });
     }
     const idx = STEP_ORDER.indexOf(currentStep);
     if (idx >= 0 && idx < STEP_ORDER.length - 1) {
