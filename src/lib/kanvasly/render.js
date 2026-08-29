@@ -1,4 +1,5 @@
 import { compositeProduct } from "./compositing";
+import { compositeAngle } from "./catalog";
 import { generateBackdrop } from "./backdrops";
 import { applyRelighting } from "./relighting";
 import { applyBokeh } from "./bokeh";
@@ -15,14 +16,29 @@ export function renderStudio(ctx, canvas, state) {
     return;
   }
   if (state.backdrop && state.backdropImage) {
-    const composited = compositeProduct(
-      state.productImage,
-      state.backdropImage,
-      state.shadow,
-      state.reflection,
-      state.product,
-      state.backdropBlur || 0
-    );
+    const ca = state.catalogAngle || {};
+    const hasAngle = (ca.rotation && ca.rotation !== 0) || (ca.scaleY && ca.scaleY !== 1);
+    let composited;
+    if (hasAngle) {
+      composited = compositeAngle(
+        state.productImage,
+        state.backdropImage,
+        ca,
+        state.shadow,
+        state.reflection,
+        state.product,
+        state.backdropBlur || 0
+      );
+    } else {
+      composited = compositeProduct(
+        state.productImage,
+        state.backdropImage,
+        state.shadow,
+        state.reflection,
+        state.product,
+        state.backdropBlur || 0
+      );
+    }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(composited, 0, 0);
   } else {

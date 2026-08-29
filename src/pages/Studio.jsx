@@ -147,7 +147,7 @@ export default function Studio() {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
-      const state = { ...s, originalImage, productImage, backdropImage, canvas };
+      const state = { ...s, originalImage, productImage, backdropImage, canvas, catalogAngle: s.catalogAngle };
 
       if (mode === "studio") {
         if (currentStep === "on-model" && productImage) {
@@ -301,7 +301,10 @@ export default function Studio() {
       canvas.style.cursor = "";
       // Save the TARGET angle (what the user aimed at), not the lagging eased
       // `current` value — otherwise navigating away mid-ease resets the angle.
-      setCatalogAngle({ rotation: target.rotation, scaleY: target.scaleY });
+      const savedAngle = { rotation: target.rotation, scaleY: target.scaleY };
+      catalogAngleRef.current = savedAngle;
+      catalogLiveAngleRef.current = savedAngle;
+      setCatalogAngle(savedAngle);
     };
   }, [mode, currentStep, productImage]);
 
