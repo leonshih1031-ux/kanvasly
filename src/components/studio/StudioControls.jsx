@@ -302,6 +302,9 @@ export default function StudioControls({
             hold Shift for fine control. Click a preset to snap to an angle.
           </Hint>
           <OptionGrid options={angleList} value="front" onSelect={(k) => onCatalogThumb({ key: k })} />
+          <button className="kv-btn-secondary kv-btn-full" onClick={actions.generateCustomAngle}>
+            Generate your angle
+          </button>
           <button className="kv-btn-primary kv-btn-full" onClick={actions.generateCatalog}>
             Generate all angles
           </button>

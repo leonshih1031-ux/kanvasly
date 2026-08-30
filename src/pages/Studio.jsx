@@ -735,6 +735,35 @@ export default function Studio() {
     }, 80);
   };
 
+  const generateCustomAngleImg = () => {
+    if (!productImage) {
+      notify("Remove background first", "error");
+      return;
+    }
+    let bd = backdropImage;
+    if (!bd && canvasSize.w) {
+      bd = generateBackdrop(s.backdrop, canvasSize.w, canvasSize.h);
+      setBackdropImage(bd);
+    }
+    setProcessing(true);
+    setProcessingText("Generating your angle...");
+    setTimeout(() => {
+      try {
+        const canvas = compositeAngle(
+          productImage, bd, catalogLiveAngleRef.current,
+          s.shadow, s.reflection, s.product, s.backdropBlur || 0
+        );
+        const entry = { angle: "custom", label: "Your angle", dataURL: canvas.toDataURL("image/png") };
+        setCatalogAngles((prev) => [entry, ...prev.filter((a) => a.angle !== "custom")]);
+        notify("Your angle generated");
+      } catch (err) {
+        notify("Generation failed: " + err.message, "error");
+      } finally {
+        setProcessing(false);
+      }
+    }, 80);
+  };
+
   const onCatalogThumb = (a) => {
     const key = a.key || a.angle;
     const t = angleTransforms[key];
@@ -866,6 +895,7 @@ export default function Studio() {
       generateScene,
       generateModel,
       generateCatalog: generateCatalogImgs,
+      generateCustomAngle: generateCustomAngleImg,
       applyOnModel,
       nextStep,
       skipStep,
