@@ -754,7 +754,7 @@ export default function Studio() {
           s.shadow, s.reflection, s.product, s.backdropBlur || 0
         );
         const entry = { angle: "custom", label: "Your angle", dataURL: canvas.toDataURL("image/png") };
-        setCatalogAngles((prev) => [entry, ...prev.filter((a) => a.angle !== "custom")]);
+        setCatalogAngles([entry]);
         notify("Your angle generated");
       } catch (err) {
         notify("Generation failed: " + err.message, "error");
