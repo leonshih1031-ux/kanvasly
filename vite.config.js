@@ -8,7 +8,6 @@ export default defineConfig({
     dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
   },
   optimizeDeps: {
-    force: true,
     include: ['react', 'react-dom', 'react/jsx-runtime'],
   },
   plugins: [

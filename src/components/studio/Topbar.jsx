@@ -1,5 +1,5 @@
 import React from "react";
-import { Download } from "lucide-react";
+import { Download, Bookmark } from "lucide-react";
 import Logo from "./Logo";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +9,7 @@ const MODES = [
   { key: "batch", label: "Batch" },
 ];
 
-export default function Topbar({ mode, onModeChange, hasImage, onExportClick }) {
+export default function Topbar({ mode, onModeChange, hasImage, onExportClick, onPresetsClick }) {
   return (
     <header className="kv-topbar">
       <div className="flex items-center gap-2.5">
@@ -32,6 +32,14 @@ export default function Topbar({ mode, onModeChange, hasImage, onExportClick }) 
       </nav>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={onPresetsClick}
+          className="kv-btn-secondary"
+          style={{ padding: "8px 14px", fontSize: 13, fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 7 }}
+        >
+          <Bookmark size={15} />
+          Presets
+        </button>
         <button
           onClick={onExportClick}
           disabled={!hasImage}

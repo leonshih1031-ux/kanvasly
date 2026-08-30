@@ -22,6 +22,7 @@ import { renderStudio, renderRetouch, ensureBackdrop } from "@/lib/kanvasly/rend
 import BatchSidebar from "@/components/studio/BatchSidebar";
 import BatchCanvasArea from "@/components/studio/BatchCanvasArea";
 import BatchControls from "@/components/studio/BatchControls";
+import PresetModal from "@/components/studio/PresetModal";
 import { base44 } from "@/api/base44Client";
 
 const INITIAL = {
@@ -72,6 +73,42 @@ export default function Studio() {
   const batchFolderInputRef = useRef(null);
   const [processingText, setProcessingText] = useState("Processing...");
   const [progress, setProgress] = useState(null);
+  const [showPresets, setShowPresets] = useState(false);
+
+  // Snapshot of the studio composition settings to save into / load from a preset.
+  const presetSettings = {
+    shadow: s.shadow,
+    reflection: s.reflection,
+    product: s.product,
+    relight: s.relight,
+    backdrop: s.backdrop,
+    customColor: s.customColor,
+    backdropBlur: s.backdropBlur,
+    onModel: s.onModel,
+  };
+
+  const applyPreset = (settings) => {
+    if (!settings) return;
+    setS((prev) => ({
+      ...prev,
+      ...(settings.shadow ? { shadow: { ...prev.shadow, ...settings.shadow } } : {}),
+      ...(settings.reflection ? { reflection: { ...prev.reflection, ...settings.reflection } } : {}),
+      ...(settings.product ? { product: { ...prev.product, ...settings.product } } : {}),
+      ...(settings.relight ? { relight: { ...prev.relight, ...settings.relight } } : {}),
+      ...(settings.backdrop ? { backdrop: settings.backdrop } : {}),
+      ...(settings.customColor ? { customColor: settings.customColor } : {}),
+      ...(settings.backdropBlur !== undefined ? { backdropBlur: settings.backdropBlur } : {}),
+      ...(settings.onModel ? { onModel: { ...prev.onModel, ...settings.onModel } } : {}),
+    }));
+    if (settings.backdrop && canvasSize.w) {
+      if (settings.backdrop === "custom-color" && settings.customColor) {
+        setBackdropImage(generateColorBackdrop(settings.customColor, canvasSize.w, canvasSize.h));
+      } else if (settings.backdrop !== "photo") {
+        setBackdropImage(generateBackdrop(settings.backdrop, canvasSize.w, canvasSize.h));
+      }
+    }
+    toast({ title: "Preset applied" });
+  };
 
   const hasImage = !!originalImage;
   const mode = s.mode;
@@ -905,7 +942,14 @@ export default function Studio() {
           e.target.value = "";
         }}
       />
-      <Topbar mode={mode} onModeChange={onModeChange} hasImage={hasImage} onExportClick={onExportClick} />
+      <Topbar mode={mode} onModeChange={onModeChange} hasImage={hasImage} onExportClick={onExportClick} onPresetsClick={() => setShowPresets(true)} />
+      {showPresets && (
+        <PresetModal
+          currentSettings={presetSettings}
+          onApply={applyPreset}
+          onClose={() => setShowPresets(false)}
+        />
+      )}
       <div className="kv-layout">
         {mode === "batch" ? (
           <BatchSidebar items={batchItems} onRemove={removeBatchItem} onClear={clearBatch} processing={processing} />
