@@ -190,8 +190,8 @@ export default function Studio() {
         if (currentStep === "on-model" && productImage) {
           const bd = ensureBackdrop(state) || generateBackdrop(s.backdrop, canvas.width, canvas.height);
           const result = onModelImage
-            ? compositeOnAIModel(productImage, onModelImage, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection)
-            : compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection);
+            ? compositeOnAIModel(productImage, onModelImage, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection, s.catalogAngle)
+            : compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection, s.catalogAngle);
           ctx.clearRect(0, 0, canvas.width, canvas.height);
           ctx.drawImage(result, 0, 0);
         } else if (currentStep === "catalog") {

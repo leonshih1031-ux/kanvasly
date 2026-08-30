@@ -91,7 +91,25 @@ export const modelPoseList = [
 
 // Composites the product onto an AI-generated model image (cover-fit) instead of a procedural silhouette.
 // Shadow & reflection from the Effects step are applied so adjustments persist.
-export function compositeOnAIModel(productImg, modelCanvas, scale, xPct, yPct, backdropCanvas, shadow, reflection) {
+function drawProductWithAngle(ctx, productImg, drawX, drawY, drawW, drawH, angleTransform) {
+  const t = angleTransform || {};
+  const rotation = ((t.rotation || 0) * Math.PI) / 180;
+  const scaleY = t.scaleY || 1;
+  if (!rotation && scaleY === 1) {
+    ctx.drawImage(productImg, drawX, drawY, drawW, drawH);
+    return;
+  }
+  const cx = drawX + drawW / 2;
+  const cy = drawY + drawH / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotation);
+  ctx.scale(1, scaleY);
+  ctx.drawImage(productImg, -drawW / 2, -drawH / 2, drawW, drawH);
+  ctx.restore();
+}
+
+export function compositeOnAIModel(productImg, modelCanvas, scale, xPct, yPct, backdropCanvas, shadow, reflection, angleTransform) {
   const w = backdropCanvas.width;
   const h = backdropCanvas.height;
   const { canvas, ctx } = createCanvas(w, h);
@@ -107,11 +125,11 @@ export function compositeOnAIModel(productImg, modelCanvas, scale, xPct, yPct, b
   const drawX = (w * xPct) / 100 - drawW / 2;
   const drawY = (h * yPct) / 100 - drawH / 2;
   drawShadowAndReflection(ctx, productImg, drawX, drawY, drawW, drawH, shadow, reflection);
-  ctx.drawImage(productImg, drawX, drawY, drawW, drawH);
+  drawProductWithAngle(ctx, productImg, drawX, drawY, drawW, drawH, angleTransform);
   return canvas;
 }
 
-export function compositeOnModel(productImg, pose, scale, xPct, yPct, backdropCanvas, shadow, reflection) {
+export function compositeOnModel(productImg, pose, scale, xPct, yPct, backdropCanvas, shadow, reflection, angleTransform) {
   const w = backdropCanvas.width;
   const h = backdropCanvas.height;
   const { canvas, ctx } = createCanvas(w, h);
@@ -124,6 +142,6 @@ export function compositeOnModel(productImg, pose, scale, xPct, yPct, backdropCa
   const drawX = (w * xPct) / 100 - drawW / 2;
   const drawY = (h * yPct) / 100 - drawH / 2;
   drawShadowAndReflection(ctx, productImg, drawX, drawY, drawW, drawH, shadow, reflection);
-  ctx.drawImage(productImg, drawX, drawY, drawW, drawH);
+  drawProductWithAngle(ctx, productImg, drawX, drawY, drawW, drawH, angleTransform);
   return canvas;
 }
