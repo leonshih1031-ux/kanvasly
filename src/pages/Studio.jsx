@@ -272,6 +272,9 @@ export default function Studio() {
         current.rotation = target.rotation;
         current.scaleY = target.scaleY;
       }
+      // Track the DISPLAYED (eased) angle so "Generate your angle" captures
+      // exactly what the user sees on screen, not the lagging target.
+      catalogLiveAngleRef.current = { rotation: current.rotation, scaleY: current.scaleY };
       if (needsDraw) { draw(); needsDraw = false; }
       rafId = requestAnimationFrame(tick);
     };
@@ -745,23 +748,17 @@ export default function Studio() {
       bd = generateBackdrop(s.backdrop, canvasSize.w, canvasSize.h);
       setBackdropImage(bd);
     }
-    setProcessing(true);
-    setProcessingText("Generating your angle...");
-    setTimeout(() => {
-      try {
-        const canvas = compositeAngle(
-          productImage, bd, catalogLiveAngleRef.current,
-          s.shadow, s.reflection, s.product, s.backdropBlur || 0
-        );
-        const entry = { angle: "custom", label: "Your angle", dataURL: canvas.toDataURL("image/png") };
-        setCatalogAngles([entry]);
-        notify("Your angle generated");
-      } catch (err) {
-        notify("Generation failed: " + err.message, "error");
-      } finally {
-        setProcessing(false);
-      }
-    }, 80);
+    try {
+      const canvas = compositeAngle(
+        productImage, bd, catalogLiveAngleRef.current,
+        s.shadow, s.reflection, s.product, s.backdropBlur || 0
+      );
+      const entry = { angle: "custom", label: "Your angle", dataURL: canvas.toDataURL("image/png") };
+      setCatalogAngles([entry]);
+      notify("Your angle generated");
+    } catch (err) {
+      notify("Generation failed: " + err.message, "error");
+    }
   };
 
   const onCatalogThumb = (a) => {
