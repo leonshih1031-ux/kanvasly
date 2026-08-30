@@ -687,7 +687,7 @@ export default function Studio() {
     setProcessingText("Generating angles...");
     setTimeout(() => {
       try {
-        const angles = generateCatalog(productImage, bd, s.shadow, s.reflection, s.product, s.backdropBlur || 0);
+        const angles = generateCatalog(productImage, bd, s.shadow, s.reflection, s.product, s.backdropBlur || 0, catalogLiveAngleRef.current);
         setCatalogAngles(angles);
         notify("Catalog generated");
       } catch (err) {

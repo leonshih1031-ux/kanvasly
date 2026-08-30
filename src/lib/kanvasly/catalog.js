@@ -61,10 +61,17 @@ export function compositeAngle(productImg, backdropCanvas, transform, shadow, re
   return renderAngle(productImg, backdropCanvas, transform, shadow, reflection, product, backdropBlur);
 }
 
-export function generateCatalog(productImg, backdropCanvas, shadow, reflection, product, backdropBlur = 0) {
+export function generateCatalog(productImg, backdropCanvas, shadow, reflection, product, backdropBlur = 0, customTransform = null) {
   if (!productImg) return [];
-  return angleList.map(({ key, label }) => {
+  const hasCustom = customTransform && ((customTransform.rotation && customTransform.rotation !== 0) || (customTransform.scaleY && customTransform.scaleY !== 1));
+  const entries = [];
+  if (hasCustom) {
+    const canvas = renderAngle(productImg, backdropCanvas, customTransform, shadow, reflection, product, backdropBlur);
+    entries.push({ angle: "custom", label: "Your angle", dataURL: canvas.toDataURL("image/png") });
+  }
+  angleList.forEach(({ key, label }) => {
     const canvas = renderAngle(productImg, backdropCanvas, angleTransforms[key], shadow, reflection, product, backdropBlur);
-    return { angle: key, label, dataURL: canvas.toDataURL("image/png") };
+    entries.push({ angle: key, label, dataURL: canvas.toDataURL("image/png") });
   });
+  return entries;
 }
