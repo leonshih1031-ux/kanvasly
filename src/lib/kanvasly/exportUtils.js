@@ -57,3 +57,33 @@ export function exportToPreset(sourceCanvas, presetKey, format, quality = 0.92, 
     downloadBlob(blob, filename);
   }, format, quality);
 }
+
+// Same crop-to-fill sizing as exportToPreset, but resolves the blob (for upload)
+// instead of triggering a download.
+export function getExportBlob(sourceCanvas, presetKey, format, quality = 0.92, customW, customH) {
+  return new Promise((resolve) => {
+    let targetW;
+    let targetH;
+    if (presetKey === "custom") {
+      targetW = customW || 1080;
+      targetH = customH || 1080;
+    } else {
+      const preset = exportPresets[presetKey] || exportPresets["instagram-square"];
+      targetW = preset.width;
+      targetH = preset.height;
+    }
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = targetW;
+    exportCanvas.height = targetH;
+    const ectx = exportCanvas.getContext("2d");
+    if (format === "image/jpeg") {
+      ectx.fillStyle = "#FFFFFF";
+      ectx.fillRect(0, 0, targetW, targetH);
+    }
+    const scale = Math.max(targetW / sourceCanvas.width, targetH / sourceCanvas.height);
+    const drawW = sourceCanvas.width * scale;
+    const drawH = sourceCanvas.height * scale;
+    ectx.drawImage(sourceCanvas, (targetW - drawW) / 2, (targetH - drawH) / 2, drawW, drawH);
+    exportCanvas.toBlob((blob) => resolve(blob), format, quality);
+  });
+}

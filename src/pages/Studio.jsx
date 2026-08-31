@@ -1015,6 +1015,7 @@ export default function Studio() {
               uploadedPhoto={uploadedPhoto}
               aiGenerating={aiGenerating}
               onModelImage={onModelImage}
+              canvasRef={canvasRef}
             />
           ) : mode === "retouch" ? (
             <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} />

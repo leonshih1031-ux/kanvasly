@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { Sparkles, Wand2, Layers, User, Download, FolderOpen } from "lucide-react";
 import Slider from "./Slider";
 import OptionGrid from "./OptionGrid";
+import DriveExport from "./DriveExport";
 import { backdropList } from "@/lib/kanvasly/backdrops";
 import { angleList } from "@/lib/kanvasly/catalog";
 import { modelPoseList } from "@/lib/kanvasly/onModel";
@@ -40,6 +41,7 @@ export default function StudioControls({
   uploadedPhoto,
   aiGenerating,
   onModelImage,
+  canvasRef,
 }) {
   const photoInputRef = useRef(null);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -467,6 +469,9 @@ export default function StudioControls({
           <button className="kv-btn-primary kv-btn-full" onClick={actions.export}>
             Download image
           </button>
+          <div className="h-px bg-white/5 my-1" />
+          <label className="text-[12px] text-kanvasly-secondary">Upload to your Google Drive</label>
+          <DriveExport canvasRef={canvasRef} state={state} />
         </div>
       )}
 
