@@ -802,11 +802,11 @@ export default function Studio() {
   // ---- lighting ----
   const selectLighting = (key) => {
     const preset = lightingPresets[key];
-    if (preset) setS((prev) => ({ ...prev, relight: { ...prev.relight, preset: key, filter: "custom", ...preset } }));
+    if (preset) setS((prev) => ({ ...prev, relight: { ...cameraFilters.original, preset: key, filter: "custom", ...preset } }));
   };
   const selectFilter = (key) => {
     const f = cameraFilters[key];
-    if (f) setS((prev) => ({ ...prev, relight: { ...prev.relight, preset: "custom", filter: key, ...f } }));
+    if (f) setS((prev) => ({ ...prev, relight: { ...cameraFilters.original, preset: "custom", filter: key, ...f } }));
   };
   const resetLighting = () => {
     setS((prev) => ({ ...prev, relight: { preset: "neutral", filter: "original", ...lightingPresets.neutral, ...cameraFilters.original } }));

@@ -52,6 +52,7 @@ export function exportToPreset(sourceCanvas, presetKey, format, quality = 0.92, 
   ectx.drawImage(sourceCanvas, (targetW - drawW) / 2, (targetH - drawH) / 2, drawW, drawH);
 
   exportCanvas.toBlob((blob) => {
+    if (!blob) return;
     const ext = format.split("/")[1];
     const filename = name ? `${name}.${ext}` : `kanvasly-${presetKey}-${Date.now()}.${ext}`;
     downloadBlob(blob, filename);

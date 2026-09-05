@@ -70,11 +70,15 @@ export default function RetouchControls({ tool, state, actions, setters, origina
                       : "border-white/10 hover:border-white/25"
                   )}
                 >
-                  <img
-                    src={thumbs[f.key]}
-                    alt={f.label}
-                    className="w-full aspect-square object-cover rounded-md"
-                  />
+                  {thumbs[f.key] ? (
+                    <img
+                      src={thumbs[f.key]}
+                      alt={f.label}
+                      className="w-full aspect-square object-cover rounded-md"
+                    />
+                  ) : (
+                    <div className="w-full aspect-square rounded-md bg-kanvasly-input" />
+                  )}
                   <span className="text-[10px] text-kanvasly-secondary text-center leading-tight">
                     {f.label}
                   </span>
@@ -90,8 +94,8 @@ export default function RetouchControls({ tool, state, actions, setters, origina
         <div className="kv-control-group">
           <PanelHeader icon={Sliders} title="Adjust" />
           <Hint>
-            Pro-grade adjustments. Lighting presets set a starting point — your manual
-            tweaks layer on top.
+            Pro-grade adjustments. Pick a lighting preset as a starting point, then
+            fine-tune with the sliders.
           </Hint>
           <OptionGrid
             options={lightingPresetList}
