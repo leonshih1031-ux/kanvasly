@@ -12,9 +12,10 @@ export const STUDIO_STEPS = [
 ];
 
 export const RETOUCH_TOOLS = [
+  { key: "filters", label: "Filters" },
+  { key: "adjust", label: "Adjust" },
   { key: "bokeh", label: "Bokeh / depth" },
-  { key: "relight", label: "Weather & lighting" },
-  { key: "retouch", label: "Portrait retouch" },
+  { key: "retouch", label: "Retouch" },
   { key: "export", label: "Export" },
 ];
 

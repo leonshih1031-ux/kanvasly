@@ -17,6 +17,7 @@ import { generateCatalog, compositeAngle, angleTransforms } from "@/lib/kanvasly
 import { compositeOnModel, compositeOnAIModel } from "@/lib/kanvasly/onModel";
 import { exportToPreset } from "@/lib/kanvasly/exportUtils";
 import { lightingPresets, applyRelighting } from "@/lib/kanvasly/relighting";
+import { cameraFilters } from "@/lib/kanvasly/filters";
 import { compositeProduct } from "@/lib/kanvasly/compositing";
 import { renderStudio, renderRetouch, ensureBackdrop } from "@/lib/kanvasly/render";
 import BatchSidebar from "@/components/studio/BatchSidebar";
@@ -37,7 +38,13 @@ const INITIAL = {
   bgModel: "isnet_fp16",
   backdropBlur: 0,
   bokeh: { blur: 15, focusScale: 60, focusX: 50, focusY: 50, applied: false },
-  relight: { preset: "neutral", brightness: 100, contrast: 100, saturation: 100, temperature: 0, tint: 0, vignette: 0, vignetteShape: 50 },
+  relight: {
+    preset: "neutral", filter: "original",
+    brightness: 100, contrast: 100, saturation: 100,
+    exposure: 0, highlights: 0, shadows: 0, whites: 0, blacks: 0,
+    vibrance: 0, clarity: 0, fade: 0, grain: 0,
+    temperature: 0, tint: 0, vignette: 0, vignetteShape: 50,
+  },
   retouch: { dustRemoval: false, sharpen: 0, denoise: 0, colorCorrect: false, applied: false },
   feather: 2,
   exportPreset: "shopify-main",
@@ -58,7 +65,7 @@ export default function Studio() {
   const [backdropImage, setBackdropImage] = useState(null);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const [currentStep, setCurrentStep] = useState("upload");
-  const [currentTool, setCurrentTool] = useState("bokeh");
+  const [currentTool, setCurrentTool] = useState("filters");
   const [catalogAngles, setCatalogAngles] = useState([]);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const uploadedPhotoCanvasRef = useRef(null);
@@ -795,11 +802,15 @@ export default function Studio() {
   // ---- lighting ----
   const selectLighting = (key) => {
     const preset = lightingPresets[key];
-    if (preset) setS((prev) => ({ ...prev, relight: { preset: key, ...preset } }));
+    if (preset) setS((prev) => ({ ...prev, relight: { ...prev.relight, preset: key, filter: "custom", ...preset } }));
+  };
+  const selectFilter = (key) => {
+    const f = cameraFilters[key];
+    if (f) setS((prev) => ({ ...prev, relight: { ...prev.relight, preset: "custom", filter: key, ...f } }));
   };
   const resetLighting = () => {
-    setS((prev) => ({ ...prev, relight: { preset: "neutral", ...lightingPresets.neutral } }));
-    notify("Lighting reset to neutral");
+    setS((prev) => ({ ...prev, relight: { preset: "neutral", filter: "original", ...lightingPresets.neutral, ...cameraFilters.original } }));
+    notify("Adjustments reset to neutral");
   };
 
   // ---- export ----
@@ -817,7 +828,7 @@ export default function Studio() {
   const onModeChange = (m) => {
     setS((prev) => ({ ...prev, mode: m }));
     if (m === "studio") setCurrentStep("upload");
-    else setCurrentTool("bokeh");
+    else setCurrentTool("filters");
   };
 
   // ---- sidebar nav ----
@@ -904,6 +915,7 @@ export default function Studio() {
       applyBokeh,
       applyRetouch,
       selectLighting,
+      selectFilter,
       resetLighting,
       export: doExport,
       selectExportPreset,
@@ -1018,7 +1030,7 @@ export default function Studio() {
               canvasRef={canvasRef}
             />
           ) : mode === "retouch" ? (
-            <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} />
+            <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} originalImage={originalImage} />
           ) : (
             <BatchControls
               state={s}
