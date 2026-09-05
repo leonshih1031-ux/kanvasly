@@ -1,5 +1,5 @@
 import React from "react";
-import { Wand2, Aperture, SunMedium, Sparkles, Download } from "lucide-react";
+import { Aperture, SunMedium, Sparkles, Download } from "lucide-react";
 import Slider from "./Slider";
 import OptionGrid from "./OptionGrid";
 import { lightingPresetList } from "@/lib/kanvasly/relighting";
@@ -25,28 +25,6 @@ function Hint({ children }) {
 export default function RetouchControls({ tool, state, actions, setters }) {
   return (
     <div className="kv-panel">
-      {/* BG REMOVE */}
-      {tool === "bg-remove" && (
-        <div className="kv-control-group">
-          <PanelHeader icon={Wand2} title="Background removal" />
-          <Hint>
-            Remove distracting backgrounds from any photo. Perfect for cleaning up busy
-            product shots.
-          </Hint>
-          <button className="kv-btn-primary kv-btn-full" onClick={actions.removeBg}>
-            Remove background
-          </button>
-          <Slider
-            label="Feather edge"
-            value={state.feather}
-            min={0}
-            max={10}
-            unit="px"
-            onChange={(v) => setters.setFeather(v)}
-          />
-        </div>
-      )}
-
       {/* BOKEH */}
       {tool === "bokeh" && (
         <div className="kv-control-group">

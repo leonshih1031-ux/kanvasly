@@ -58,7 +58,7 @@ export default function Studio() {
   const [backdropImage, setBackdropImage] = useState(null);
   const [canvasSize, setCanvasSize] = useState({ w: 0, h: 0 });
   const [currentStep, setCurrentStep] = useState("upload");
-  const [currentTool, setCurrentTool] = useState("bg-remove");
+  const [currentTool, setCurrentTool] = useState("bokeh");
   const [catalogAngles, setCatalogAngles] = useState([]);
   const [uploadedPhoto, setUploadedPhoto] = useState(null);
   const uploadedPhotoCanvasRef = useRef(null);
@@ -817,7 +817,7 @@ export default function Studio() {
   const onModeChange = (m) => {
     setS((prev) => ({ ...prev, mode: m }));
     if (m === "studio") setCurrentStep("upload");
-    else setCurrentTool("bg-remove");
+    else setCurrentTool("bokeh");
   };
 
   // ---- sidebar nav ----

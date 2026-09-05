@@ -12,7 +12,6 @@ export const STUDIO_STEPS = [
 ];
 
 export const RETOUCH_TOOLS = [
-  { key: "bg-remove", label: "Background removal" },
   { key: "bokeh", label: "Bokeh / depth" },
   { key: "relight", label: "Weather & lighting" },
   { key: "retouch", label: "Portrait retouch" },
