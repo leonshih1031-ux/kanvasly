@@ -137,9 +137,16 @@ export default function RetouchControls({ tool, state, actions, setters, origina
           <Slider label="Focus area" value={state.bokeh.focusScale} min={10} max={100} unit="%" onChange={(v) => setters.setBokeh({ focusScale: v })} />
           <Slider label="Focus point X" value={state.bokeh.focusX} min={0} max={100} unit="%" onChange={(v) => setters.setBokeh({ focusX: v })} />
           <Slider label="Focus point Y" value={state.bokeh.focusY} min={0} max={100} unit="%" onChange={(v) => setters.setBokeh({ focusY: v })} />
-          <button className="kv-btn-primary kv-btn-full" onClick={actions.applyBokeh}>
-            Apply bokeh
-          </button>
+          <div className="flex gap-2">
+            <button className="kv-btn-primary flex-1" onClick={actions.applyBokeh}>
+              Apply bokeh
+            </button>
+            {state.bokeh.applied && (
+              <button className="kv-btn-secondary flex-1" onClick={actions.removeBokeh}>
+                Remove
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -161,9 +168,16 @@ export default function RetouchControls({ tool, state, actions, setters, origina
           </label>
           <Slider label="Denoise" value={state.retouch.denoise} min={0} max={100} unit="%" onChange={(v) => setters.setRetouch({ denoise: v })} />
           <Slider label="Sharpen" value={state.retouch.sharpen} min={0} max={100} unit="%" onChange={(v) => setters.setRetouch({ sharpen: v })} />
-          <button className="kv-btn-primary kv-btn-full" onClick={actions.applyRetouch}>
-            Apply retouch
-          </button>
+          <div className="flex gap-2">
+            <button className="kv-btn-primary flex-1" onClick={actions.applyRetouch}>
+              Apply retouch
+            </button>
+            {state.retouch.applied && (
+              <button className="kv-btn-secondary flex-1" onClick={actions.removeRetouch}>
+                Remove
+              </button>
+            )}
+          </div>
         </div>
       )}
 

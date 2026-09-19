@@ -697,7 +697,7 @@ export default function Studio() {
           s.backdrop === "custom-color"
             ? generateColorBackdrop(s.customColor, w, h)
             : generateBackdrop(s.backdrop, w, h);
-        const comp = compositeProduct(product, bd, s.shadow, s.reflection, s.product);
+        const comp = compositeProduct(product, bd, s.shadow, s.reflection, s.product, s.backdropBlur || 0);
         applyRelighting(comp, s.relight);
         const base = item.name.replace(/\.[^.]+$/, "");
         exportToPreset(comp, s.exportPreset, s.exportFormat, (s.exportQuality || 92) / 100, s.customW, s.customH, base);
@@ -788,6 +788,10 @@ export default function Studio() {
     setBokeh({ applied: true });
     notify("Bokeh applied");
   };
+  const removeBokeh = () => {
+    setBokeh({ applied: false });
+    notify("Bokeh removed");
+  };
 
   // ---- retouch ----
   const applyRetouch = () => {
@@ -797,6 +801,10 @@ export default function Studio() {
     }
     setRetouch({ applied: true });
     notify("Retouch applied");
+  };
+  const removeRetouch = () => {
+    setRetouch({ applied: false });
+    notify("Retouch removed");
   };
 
   // ---- lighting ----
@@ -913,7 +921,9 @@ export default function Studio() {
     retouch: {
       removeBg: () => doRemoveBg(true),
       applyBokeh,
+      removeBokeh,
       applyRetouch,
+      removeRetouch,
       selectLighting,
       selectFilter,
       resetLighting,

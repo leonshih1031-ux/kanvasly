@@ -67,7 +67,7 @@ export default function DriveExport({ canvasRef, state }) {
       if (!blob) throw new Error("Could not generate image");
       const ext = state.exportFormat.split("/")[1];
       const file = new File([blob], `kanvasly-${Date.now()}.${ext}`, { type: state.exportFormat });
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
       const res = await base44.functions.invoke("uploadToDrive", {
         fileUrl: file_url,
         fileName: file.name,

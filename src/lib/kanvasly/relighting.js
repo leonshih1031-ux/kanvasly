@@ -59,16 +59,19 @@ export function applyRelighting(canvas, settings) {
   } = settings;
 
   // 1. CSS filter pass: brightness, contrast, saturation, exposure.
+  // Skipped when all neutral — avoids a full-canvas copy on every render.
   const exposureFactor = Math.pow(2, exposure / 100);
   const brightVal = (brightness / 100) * exposureFactor * 100;
-  const temp = document.createElement("canvas");
-  temp.width = w;
-  temp.height = h;
-  const tctx = temp.getContext("2d");
-  tctx.filter = `brightness(${brightVal}%) contrast(${contrast}%) saturate(${saturation}%)`;
-  tctx.drawImage(canvas, 0, 0);
-  ctx.clearRect(0, 0, w, h);
-  ctx.drawImage(temp, 0, 0);
+  if (brightVal !== 100 || contrast !== 100 || saturation !== 100) {
+    const temp = document.createElement("canvas");
+    temp.width = w;
+    temp.height = h;
+    const tctx = temp.getContext("2d");
+    tctx.filter = `brightness(${brightVal}%) contrast(${contrast}%) saturate(${saturation}%)`;
+    tctx.drawImage(canvas, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.drawImage(temp, 0, 0);
+  }
 
   // 2. Clarity (local contrast).
   if (clarity !== 0) applyClarity(ctx, w, h, clarity);
@@ -164,7 +167,12 @@ export function applyRelighting(canvas, settings) {
     const grad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
     grad.addColorStop(0, "rgba(0,0,0,0)");
     grad.addColorStop(1, `rgba(0,0,0,${vignette / 100})`);
+    // source-atop clips to existing alpha so transparent areas (e.g. a
+    // cut-out product) aren't filled with black.
+    ctx.save();
+    ctx.globalCompositeOperation = "source-atop";
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
+    ctx.restore();
   }
 }

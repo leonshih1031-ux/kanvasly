@@ -31,10 +31,17 @@ export function loadImageFromFile(file) {
 
 export function loadImageFromBlob(blob) {
   return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = URL.createObjectURL(blob);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = (e) => {
+      URL.revokeObjectURL(url);
+      reject(e);
+    };
+    img.src = url;
   });
 }
 

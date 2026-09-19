@@ -103,12 +103,15 @@ function autoColorCorrect(ctx, w, h) {
   const imgData = ctx.getImageData(0, 0, w, h);
   const data = imgData.data;
   let rSum = 0, gSum = 0, bSum = 0;
-  const count = data.length / 4;
+  let count = 0;
   for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
     rSum += data[i];
     gSum += data[i + 1];
     bSum += data[i + 2];
+    count++;
   }
+  if (count === 0) return;
   const rAvg = rSum / count;
   const gAvg = gSum / count;
   const bAvg = bSum / count;
