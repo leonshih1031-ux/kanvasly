@@ -641,6 +641,73 @@ body { background: var(--kv-base); color: var(--kv-text); }
 .kv-photo-thumb:hover { border-color: var(--kv-primary); transform: scale(1.04); }
 .kv-photo-thumb-active { border-color: var(--kv-primary); box-shadow: 0 0 0 2px rgba(123, 111, 224, 0.4); }
 
+/* ---------- ZOOM & ICON GROUP ---------- */
+.kv-icon-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--kv-input);
+  border-radius: 10px;
+  padding: 4px;
+  border: 1px solid var(--kv-border);
+}
+.kv-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--kv-text-secondary);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.kv-icon-btn:hover:not(:disabled) { background: var(--kv-surface-hover); color: var(--kv-text); }
+.kv-icon-btn:disabled { opacity: 0.35; cursor: default; }
+.kv-zoom-bar {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(20, 17, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--kv-border-strong);
+  border-radius: 10px;
+  padding: 4px;
+}
+.kv-zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--kv-text-secondary);
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.kv-zoom-btn:hover { background: var(--kv-surface-hover); color: var(--kv-text); }
+.kv-zoom-pct {
+  min-width: 46px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--kv-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.kv-zoom-pct:hover { background: var(--kv-surface-hover); color: var(--kv-text); }
+
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 1024px) {
   .kv-layout { grid-template-columns: 68px 1fr 300px; }

@@ -24,6 +24,8 @@ import BatchSidebar from "@/components/studio/BatchSidebar";
 import BatchCanvasArea from "@/components/studio/BatchCanvasArea";
 import BatchControls from "@/components/studio/BatchControls";
 import PresetModal from "@/components/studio/PresetModal";
+import ListingModal from "@/components/studio/ListingModal";
+import { useHistory } from "@/hooks/useHistory";
 import { base44 } from "@/api/base44Client";
 
 const INITIAL = {
@@ -81,6 +83,7 @@ export default function Studio() {
   const [processingText, setProcessingText] = useState("Processing...");
   const [progress, setProgress] = useState(null);
   const [showPresets, setShowPresets] = useState(false);
+  const [showListing, setShowListing] = useState(false);
 
   // Snapshot of the studio composition settings to save into / load from a preset.
   const presetSettings = {
@@ -119,6 +122,36 @@ export default function Studio() {
 
   const hasImage = !!originalImage;
   const mode = s.mode;
+
+  // ---- undo / redo ----
+  const snapshotFields = (st) => ({
+    shadow: st.shadow, reflection: st.reflection, product: st.product,
+    relight: st.relight, bokeh: st.bokeh, retouch: st.retouch,
+    backdrop: st.backdrop, customColor: st.customColor, backdropBlur: st.backdropBlur,
+    catalogAngle: st.catalogAngle, onModel: st.onModel, bgModel: st.bgModel,
+    exportPreset: st.exportPreset, exportFormat: st.exportFormat,
+    exportQuality: st.exportQuality, customW: st.customW, customH: st.customH, feather: st.feather,
+  });
+  const { undo, redo, canUndo, canRedo } = useHistory(s, snapshotFields);
+  const handleUndo = () => { const prev = undo(); if (prev) setS((p) => ({ ...p, ...prev })); };
+  const handleRedo = () => { const next = redo(); if (next) setS((p) => ({ ...p, ...next })); };
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        const snap = e.shiftKey ? redo() : undo();
+        if (snap) setS((p) => ({ ...p, ...snap }));
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        const snap = redo();
+        if (snap) setS((p) => ({ ...p, ...snap }));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
 
   // ---- state setters ----
   const patch = useCallback((p) => setS((prev) => ({ ...prev, ...p })), []);
@@ -991,13 +1024,16 @@ export default function Studio() {
           e.target.value = "";
         }}
       />
-      <Topbar mode={mode} onModeChange={onModeChange} hasImage={hasImage} onExportClick={onExportClick} onPresetsClick={() => setShowPresets(true)} />
+      <Topbar mode={mode} onModeChange={onModeChange} hasImage={hasImage} onExportClick={onExportClick} onPresetsClick={() => setShowPresets(true)} onListingClick={() => setShowListing(true)} canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo} />
       {showPresets && (
         <PresetModal
           currentSettings={presetSettings}
           onApply={applyPreset}
           onClose={() => setShowPresets(false)}
         />
+      )}
+      {showListing && (
+        <ListingModal canvasRef={canvasRef} onClose={() => setShowListing(false)} />
       )}
       <div className="kv-layout">
         {mode === "batch" ? (

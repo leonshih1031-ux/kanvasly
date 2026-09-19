@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { UploadCloud, SplitSquareHorizontal } from "lucide-react";
+import { UploadCloud, SplitSquareHorizontal, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CompareSlider from "@/components/studio/CompareSlider";
 
@@ -15,6 +15,18 @@ export default function CanvasArea({
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
   const [compare, setCompare] = useState(false);
+  const [zoom, setZoom] = useState(1);
+
+  const zoomIn = () => setZoom((z) => Math.min(8, +(z + 0.25).toFixed(2)));
+  const zoomOut = () => setZoom((z) => Math.max(0.25, +(z - 0.25).toFixed(2)));
+  const fit = () => setZoom(1);
+  const onWheel = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.15 : 0.15;
+      setZoom((z) => Math.max(0.25, Math.min(8, +(z + delta).toFixed(2))));
+    }
+  };
 
   const handleFiles = (files) => {
     if (files && files.length > 0) onFile(files[0]);
@@ -62,8 +74,15 @@ export default function CanvasArea({
       )}
 
       {hasImage && (
-        <div className="kv-canvas-container">
-          <canvas ref={canvasRef} className="kv-main-canvas" />
+        <div className="kv-canvas-container" onWheel={onWheel}>
+          <canvas ref={canvasRef} className="kv-main-canvas" style={{ zoom }} />
+          {hasImage && !processing && (
+            <div className="kv-zoom-bar">
+              <button onClick={zoomOut} className="kv-zoom-btn" title="Zoom out"><Minus size={14} /></button>
+              <button onClick={fit} className="kv-zoom-pct" title="Reset zoom">{Math.round(zoom * 100)}%</button>
+              <button onClick={zoomIn} className="kv-zoom-btn" title="Zoom in"><Plus size={14} /></button>
+            </div>
+          )}
           {compare && !processing && originalImage && (
             <CompareSlider originalImage={originalImage} canvasRef={canvasRef} />
           )}
