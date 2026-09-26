@@ -37,7 +37,7 @@ const INITIAL = {
   onModel: { pose: "standing", scale: 100, x: 50, y: 50 },
   catalogAngle: { rotation: 0, scaleY: 1 },
   customColor: "#7B6FE0",
-  bgModel: "isnet_fp16",
+  bgModel: "isnet_quint8",
   backdropBlur: 0,
   bokeh: { blur: 15, focusScale: 60, focusX: 50, focusY: 50, applied: false },
   relight: {
@@ -391,6 +391,10 @@ export default function Studio() {
 
   const notify = (title, variant) => toast({ title, variant: variant === "error" ? "destructive" : "default" });
 
+  // Preload the background-removal engine on mount so it's ready the moment a
+  // user uploads — no first-click wait for the library to load.
+  useEffect(() => { loadBgRemovalLibrary().catch(() => {}); }, []);
+
   // ---- file loading ----
   const loadFile = async (file) => {
     if (!file.type.startsWith("image/") && !file.type.match(/heic|heif/i) && !file.name.match(/\.(heic|heif)$/i)) {
@@ -419,7 +423,12 @@ export default function Studio() {
       }
       setCanvasSize({ w, h });
 
-      if (mode === "studio") setCurrentStep("remove-bg");
+      if (mode === "studio") {
+        setCurrentStep("remove-bg");
+        // Seamless flow: auto-start background removal the moment an image is
+        // uploaded, so the user doesn't have to click a separate button.
+        doRemoveBg(false, img, { w, h });
+      }
       notify("Image loaded successfully");
     } catch (err) {
       notify("Failed to load image: " + err.message, "error");
@@ -427,8 +436,10 @@ export default function Studio() {
   };
 
   // ---- background removal ----
-  const doRemoveBg = async (isRetouch) => {
-    if (!originalImage) {
+  const doRemoveBg = async (isRetouch, imageOverride, sizeOverride) => {
+    const img = imageOverride || originalImage;
+    const size = sizeOverride || canvasSize;
+    if (!img) {
       notify("Upload an image first", "error");
       return;
     }
@@ -439,7 +450,7 @@ export default function Studio() {
     try {
       await loadBgRemovalLibrary();
       setProcessingText("Isolating product...");
-      const resultBlob = await removeBackground(originalImage, { model: s.bgModel }, (key, current, total) => {
+      const resultBlob = await removeBackground(img, { model: s.bgModel }, (key, current, total) => {
         const pct = Math.round((current / total) * 100);
         setProgress(pct);
         setProcessingText(key.includes("fetch") ? `Downloading AI model... ${pct}%` : `Processing image... ${pct}%`);
@@ -457,7 +468,7 @@ export default function Studio() {
 
       setProductImage(product);
       if (!isRetouch) {
-        const bd = generateBackdrop(s.backdrop, canvasSize.w, canvasSize.h);
+        const bd = generateBackdrop(s.backdrop, size.w, size.h);
         setBackdropImage(bd);
         setCurrentStep("backdrop");
       }

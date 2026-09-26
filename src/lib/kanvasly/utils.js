@@ -2,12 +2,23 @@
 
 export function loadImageFromFile(file) {
   return new Promise((resolve, reject) => {
+    const isHeic = file.type.match(/heic|heif/i) || /\.(heic|heif)$/i.test(file.name);
+    // Fast path: object URLs avoid a slow, memory-heavy base64 round-trip.
+    if (!isHeic) {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not load image")); };
+      img.src = url;
+      return;
+    }
+    // HEIC/HEIF fallback: some browsers can't decode object URLs, so use dataURL.
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => resolve(img);
       img.onerror = () => {
-        if (typeof createImageBitmap !== "undefined" && file.type.match(/heic|heif/i)) {
+        if (typeof createImageBitmap !== "undefined") {
           createImageBitmap(file).then((bitmap) => {
             const canvas = document.createElement("canvas");
             canvas.width = bitmap.width;
