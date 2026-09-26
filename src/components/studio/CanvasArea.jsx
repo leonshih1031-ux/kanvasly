@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { UploadCloud, SplitSquareHorizontal, Minus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CompareSlider from "@/components/studio/CompareSlider";
+import HistogramOverlay from "@/components/studio/HistogramOverlay";
 
 export default function CanvasArea({
   hasImage,
@@ -11,6 +12,7 @@ export default function CanvasArea({
   progress,
   canvasRef,
   originalImage,
+  originalFile,
 }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -83,6 +85,7 @@ export default function CanvasArea({
               <button onClick={zoomIn} className="kv-zoom-btn" title="Zoom in"><Plus size={14} /></button>
             </div>
           )}
+          <HistogramOverlay canvasRef={canvasRef} originalFile={originalFile} visible={hasImage && !processing} />
           {compare && !processing && originalImage && (
             <CompareSlider originalImage={originalImage} canvasRef={canvasRef} />
           )}

@@ -84,6 +84,7 @@ export default function Studio() {
   const [progress, setProgress] = useState(null);
   const [showPresets, setShowPresets] = useState(false);
   const [showListing, setShowListing] = useState(false);
+  const [originalFile, setOriginalFile] = useState(null);
 
   // Snapshot of the studio composition settings to save into / load from a preset.
   const presetSettings = {
@@ -403,6 +404,7 @@ export default function Studio() {
     try {
       const img = await loadImageFromFile(file);
       setOriginalImage(img);
+      setOriginalFile(file);
       setProductImage(null);
       setBackdropImage(null);
       setCatalogAngles([]);
@@ -1059,6 +1061,7 @@ export default function Studio() {
             progress={progress}
             canvasRef={canvasRef}
             originalImage={originalImage}
+            originalFile={originalFile}
           />
         )}
         <aside className="kv-controls-panel">
