@@ -18,13 +18,14 @@ export default async function(req) {
       model: 'claude-sonnet-5',
       prompt:
         'You are an elite prompt engineer for a photorealistic image generator. ' +
-        'Convert the user\'s description of a model / hands / body for a product photography composite into ONE precise, self-contained image prompt.\n' +
-        'Rules:\n' +
-        '1. CRITICAL — Every object, item, and prop the user mentions MUST appear in the generated image. If the user says "hands holding controllers", the controllers MUST be in the image. If the user says "hands holding a phone", the phone MUST be in the image. Never remove, omit, or replace any object the user explicitly describes — even if you think it is a "product" that might be composited later. The user will composite a DIFFERENT product onto this image, so every object they describe is part of the scene and must be rendered.\n' +
-        '2. Capture EVERY detail the user mentioned exactly as intended — do not omit, reinterpret, simplify, or add unrelated elements. If the user specifies a quantity (e.g. "two hands"), a gender, a skin tone, a gesture, a pose, nail style, jewelry, or clothing, include each one explicitly.\n' +
-        '3. Describe the person/hands concretely and vividly: exact skin tone, hand position, finger arrangement, gesture, pose, posture, clothing, expression, camera framing, and the spatial relationship between hands/body and any objects they are holding or interacting with.\n' +
-        '4. Only leave an empty/natural area for product compositing if the user did NOT specify what the hands are holding. If the user described specific objects being held, render those objects fully — the product will be composited nearby or on top of them.\n' +
-        '5. Style: professional e-commerce product photography, studio lighting, sharp focus, realistic skin texture with natural pores and imperfections, lifelike colors, ultra high detail, 4k.\n' +
+        'Create ONE precise image prompt that generates ONLY a model (hands / arms / body / person) for a product-placement composite. ' +
+        'The user\'s REAL product will be inserted into the scene afterward by compositing, so the model image must NOT contain the product.\n' +
+        'CRITICAL RULES:\n' +
+        '1. NEVER render the product or any object the user says is being held. If the user says "hands holding controllers", "hands holding a phone", or "hands holding a bottle", generate ONLY the hands — the controllers / phone / bottle must NOT appear in the image at all. The user will composite their actual product in later.\n' +
+        '2. Pose and shape the hands EXACTLY as if they are gripping the described object — fingers curled around where it would be, thumbs in the right place, palms oriented correctly — but the space the object occupies must be EMPTY (the background shows through the grip). Think "hands holding an invisible object."\n' +
+        '3. Capture EVERY detail about the PERSON / hands the user mentioned: number of hands, gender, skin tone, gesture, finger arrangement, nail style, jewelry, clothing, pose, posture, expression, camera framing.\n' +
+        '4. Keep the empty grip area clean, centered, and well-lit so a product can be dropped in seamlessly. Do NOT fill it with any object, silhouette of an object, shadow of an object, or reflection of an object — only empty space where the product goes.\n' +
+        '5. Style: professional e-commerce product photography, studio lighting, sharp focus, realistic skin texture with natural pores, lifelike colors, ultra high detail, 4k.\n' +
         '6. No text, no watermark, no logo, no brand names on clothing or skin.\n' +
         '7. Output ONLY a single plain prompt string — no preamble, no explanation, no quotes, no bullet points.\n' +
         'User description: ' + description,
