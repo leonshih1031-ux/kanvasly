@@ -49,6 +49,8 @@ const INITIAL = {
   },
   retouch: { dustRemoval: false, sharpen: 0, denoise: 0, colorCorrect: false, applied: false },
   feather: 2,
+  aiBlended: false,
+  aiBlendedModel: false,
   exportPreset: "shopify-main",
   exportFormat: "image/png",
   exportQuality: 92,
@@ -177,6 +179,7 @@ export default function Studio() {
     catalogDrawStateRef.current = {
       backdropImage, shadow: s.shadow, reflection: s.reflection,
       product: s.product, backdrop: s.backdrop, backdropBlur: s.backdropBlur,
+      aiBlended: s.aiBlended,
     };
     catalogStateVersionRef.current++;
   });
@@ -229,12 +232,17 @@ export default function Studio() {
 
       if (mode === "studio") {
         if (currentStep === "on-model" && productImage) {
-          const bd = ensureBackdrop(state) || generateBackdrop(s.backdrop, canvas.width, canvas.height);
-          const result = onModelImage
-            ? compositeOnAIModel(productImage, onModelImage, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection, s.catalogAngle)
-            : compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection, s.catalogAngle);
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(result, 0, 0);
+          if (s.aiBlendedModel && onModelImage) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(onModelImage, 0, 0, canvas.width, canvas.height);
+          } else {
+            const bd = ensureBackdrop(state) || generateBackdrop(s.backdrop, canvas.width, canvas.height);
+            const result = onModelImage
+              ? compositeOnAIModel(productImage, onModelImage, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection, s.catalogAngle)
+              : compositeOnModel(productImage, s.onModel.pose, s.onModel.scale, s.onModel.x, s.onModel.y, bd, s.shadow, s.reflection, s.catalogAngle);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(result, 0, 0);
+          }
         } else if (currentStep === "catalog") {
           // Drawing handled by the smooth rotation RAF effect below
         } else {
@@ -267,6 +275,11 @@ export default function Studio() {
     const draw = () => {
       const ds = catalogDrawStateRef.current;
       const bd = ds.backdropImage || generateBackdrop(ds.backdrop, canvas.width, canvas.height);
+      if (ds.aiBlended) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(bd, 0, 0, canvas.width, canvas.height);
+        return;
+      }
       const out = compositeAngle(
         productImage, bd,
         { rotation: current.rotation, scaleY: current.scaleY },
@@ -412,6 +425,8 @@ export default function Studio() {
       setProductImage(null);
       setBackdropImage(null);
       setCatalogAngles([]);
+      setOnModelImage(null);
+      setS((prev) => ({ ...prev, aiBlended: false, aiBlendedModel: false }));
 
       let w = img.naturalWidth;
       let h = img.naturalHeight;
@@ -483,7 +498,7 @@ export default function Studio() {
 
   // ---- backdrop selection ----
   const selectBackdrop = (key) => {
-    patch({ backdrop: key });
+    patch({ backdrop: key, aiBlended: false });
     if (!canvasSize.w) return;
     if (key === "custom-color") {
       setBackdropImage(generateColorBackdrop(s.customColor, canvasSize.w, canvasSize.h));
@@ -493,7 +508,7 @@ export default function Studio() {
   };
 
   const selectCustomColor = (color) => {
-    patch({ customColor: color, backdrop: "custom-color" });
+    patch({ customColor: color, backdrop: "custom-color", aiBlended: false });
     if (canvasSize.w) setBackdropImage(generateColorBackdrop(color, canvasSize.w, canvasSize.h));
   };
 
@@ -515,7 +530,7 @@ export default function Studio() {
       uploadedPhotoCanvasRef.current = canvas;
       setUploadedPhoto(URL.createObjectURL(file));
       setBackdropImage(canvas);
-      patch({ backdrop: "photo" });
+      patch({ backdrop: "photo", aiBlended: false });
       notify("Backdrop photo applied");
     } catch (err) {
       notify("Could not load photo: " + err.message, "error");
@@ -531,20 +546,33 @@ export default function Studio() {
     }
   };
 
-  // ---- AI scene generation ----
+  // ---- upload the background-removed product so the AI can blend it in ----
+  const uploadProductForAI = async () => {
+    if (!productImage) return null;
+    const c = document.createElement("canvas");
+    c.width = productImage.naturalWidth;
+    c.height = productImage.naturalHeight;
+    c.getContext("2d").drawImage(productImage, 0, 0);
+    const blob = await new Promise((r) => c.toBlob(r, "image/png"));
+    const file = new File([blob], "product.png", { type: "image/png" });
+    const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
+    return file_url;
+  };
+
+  // ---- AI scene generation (blends the real product into the scene) ----
   const generateScene = async (prompt) => {
     const p = (prompt || "").trim();
     if (!p || processing) return;
-    if (!canvasSize.w) {
-      notify("Upload a product image first", "error");
-      return;
-    }
+    if (!canvasSize.w) { notify("Upload a product image first", "error"); return; }
+    if (!productImage) { notify("Remove background first so the AI can blend your product", "error"); return; }
     setAiGenerating(true);
     setProcessing(true);
     setProgress(null);
-    setProcessingText("Generating AI scene…");
+    setProcessingText("Uploading product…");
     try {
-      const res = await base44.functions.invoke("generateScene", { prompt: p });
+      const productUrl = await uploadProductForAI();
+      setProcessingText("Generating AI scene…");
+      const res = await base44.functions.invoke("generateScene", { prompt: p, productImageUrl: productUrl });
       const url = res?.data?.url;
       if (!url) throw new Error("No image returned");
       const resp = await fetch(url);
@@ -564,8 +592,8 @@ export default function Studio() {
       ctx.drawImage(img, (canvasSize.w - dw) / 2, (canvasSize.h - dh) / 2, dw, dh);
       URL.revokeObjectURL(objUrl);
       setBackdropImage(canvas);
-      patch({ backdrop: "photo" });
-      notify("AI scene generated — position your product into it");
+      patch({ backdrop: "photo", aiBlended: true });
+      notify("AI scene generated — product blended into the scene");
     } catch (err) {
       notify("AI generation failed: " + (err.message || "Unknown error"), "error");
     } finally {
@@ -575,20 +603,20 @@ export default function Studio() {
     }
   };
 
-  // ---- AI model generation ----
+  // ---- AI model generation (model genuinely holds/wears/displays the real product) ----
   const generateModel = async (description) => {
     const d = (description || "").trim();
     if (!d || processing) return;
-    if (!canvasSize.w) {
-      notify("Upload a product image first", "error");
-      return;
-    }
+    if (!canvasSize.w) { notify("Upload a product image first", "error"); return; }
+    if (!productImage) { notify("Remove background first so the AI can blend your product", "error"); return; }
     setAiGenerating(true);
     setProcessing(true);
     setProgress(null);
-    setProcessingText("Generating AI model…");
+    setProcessingText("Uploading product…");
     try {
-      const res = await base44.functions.invoke("generateModel", { description: d });
+      const productUrl = await uploadProductForAI();
+      setProcessingText("Generating AI model…");
+      const res = await base44.functions.invoke("generateModel", { description: d, productImageUrl: productUrl });
       const url = res?.data?.url;
       if (!url) throw new Error("No image returned");
       const resp = await fetch(url);
@@ -608,7 +636,8 @@ export default function Studio() {
       ctx.drawImage(img, (canvasSize.w - dw) / 2, (canvasSize.h - dh) / 2, dw, dh);
       URL.revokeObjectURL(objUrl);
       setOnModelImage(canvas);
-      notify("AI model generated — position your product onto it");
+      patch({ aiBlendedModel: true });
+      notify("AI model generated — holding your product");
     } catch (err) {
       notify("AI generation failed: " + (err.message || "Unknown error"), "error");
     } finally {

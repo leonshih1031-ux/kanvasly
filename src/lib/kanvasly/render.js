@@ -8,6 +8,13 @@ import { applyRetouch } from "./retouch";
 // Renders the Product Studio composite onto the main canvas.
 export function renderStudio(ctx, canvas, state) {
   if (!canvas || !ctx) return;
+  // AI-blended scene: the backdrop image already contains the product blended in,
+  // so draw it directly instead of compositing the product on top (which would double it).
+  if (state.aiBlended && state.backdropImage) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(state.backdropImage, 0, 0, canvas.width, canvas.height);
+    return;
+  }
   if (!state.productImage) {
     if (state.originalImage) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);

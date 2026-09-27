@@ -131,7 +131,7 @@ export default function StudioControls({
             <input
               type="text"
               className="kv-input"
-              placeholder="e.g. two hands holding controllers"
+              placeholder="e.g. a marble podium in a sunlit studio"
               value={aiPrompt}
               onChange={(e) => setAiPrompt(e.target.value)}
               onKeyDown={(e) => {
@@ -332,10 +332,10 @@ export default function StudioControls({
         <div className="kv-control-group">
           <PanelHeader icon={User} title="On-model placement" />
           <Hint>
-            Describe the model — hands, pose, skin tone, gesture — and our AI generates a
-            photorealistic model scene. Your prompt is refined by an AI prompt engineer
-            first, so every detail is captured exactly as you describe it. Then position
-            your product onto it with the sliders.
+            Describe the model — hands, pose, skin tone, gesture — and our AI generates
+            them genuinely holding, wearing, or displaying your actual product, naturally
+            blended with matching light and shadows. Your prompt is refined first so every
+            detail is captured exactly.
           </Hint>
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-kanvasly-secondary">Describe the model</label>
@@ -362,7 +362,7 @@ export default function StudioControls({
             </button>
             {onModelImage && (
               <span className="text-[11px] text-kanvasly-accent">
-                AI model active — use the sliders to place your product.
+                AI model active — your product is blended into the model.
               </span>
             )}
           </div>
