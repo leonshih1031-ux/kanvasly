@@ -29,6 +29,14 @@ export default async function(req) {
       return Response.json({ error: 'fileUrl and fileName are required' }, { status: 400 });
     }
 
+    // Strict SSRF guard: only allow the app's own public storage hosts.
+    const ALLOWED_HOSTS = ['media.base44.com', 'static.wixstatic.com'];
+    let parsed;
+    try { parsed = new URL(body.fileUrl); } catch (_) { parsed = null; }
+    if (!parsed || parsed.protocol !== 'https:' || !ALLOWED_HOSTS.includes(parsed.hostname.toLowerCase())) {
+      return Response.json({ error: 'fileUrl must be an https URL on an allowed storage host' }, { status: 400 });
+    }
+
     // Fetch the uploaded file content.
     const fileRes = await fetch(body.fileUrl);
     if (!fileRes.ok) return Response.json({ error: 'Could not fetch file' }, { status: 502 });
