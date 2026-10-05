@@ -1,4 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { generateImageWithGemini } from '../../shared/geminiImage.ts';
+import { secrets } from 'base44:runtime';
 
 // Refines a short user description into a precise image-generation prompt, then
 // generates a photorealistic scene with the user's ACTUAL product blended into it
@@ -44,10 +46,9 @@ export default async function(req) {
     if (cutIdx !== -1) refined = refined.slice(0, cutIdx);
     refined = refined.trim() || prompt;
 
-    // Step 2: generate the final composite, using the product photo as a reference.
-    const genArgs = { prompt: refined };
-    if (productImageUrl) genArgs.existing_image_urls = [productImageUrl];
-    const result = await base44.asServiceRole.integrations.Core.GenerateImage(genArgs);
+    // Step 2: generate the final composite via Gemini, using the product photo as a reference.
+    const apiKey = secrets.get('GEMINI_API_KEY');
+    const result = await generateImageWithGemini(refined, productImageUrl, apiKey);
     if (!result || !result.url) return Response.json({ error: 'Image generation failed' }, { status: 500 });
 
     return Response.json({ url: result.url, prompt: refined });
