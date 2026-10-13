@@ -289,6 +289,16 @@ body { background: var(--kv-base); color: var(--kv-text); }
   width: 100%;
   height: 100%;
 }
+.kv-canvas-wrap { position: relative; display: inline-block; line-height: 0; }
+.kv-eraser-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+  border-radius: 12px;
+}
 .kv-main-canvas {
   max-width: 100%;
   max-height: 100%;

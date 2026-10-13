@@ -13,6 +13,9 @@ export default function CanvasArea({
   canvasRef,
   originalImage,
   originalFile,
+  eraserActive,
+  eraserOverlayRef,
+  brushSize,
 }) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -32,6 +35,50 @@ export default function CanvasArea({
 
   const handleFiles = (files) => {
     if (files && files.length > 0) onFile(files[0]);
+  };
+
+  const [erasing, setErasing] = useState(false);
+  const lastBrush = useRef({ x: 0, y: 0 });
+
+  const brushAt = (clientX, clientY) => {
+    const overlay = eraserOverlayRef?.current;
+    if (!overlay) return;
+    const rect = overlay.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = ((clientX - rect.left) / rect.width) * overlay.width;
+    const y = ((clientY - rect.top) / rect.height) * overlay.height;
+    const r = Math.max(2, (brushSize / 100) * overlay.width * 0.5);
+    const ctx = overlay.getContext("2d");
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = "#22ff22";
+    ctx.fillStyle = "#22ff22";
+    ctx.lineWidth = r * 2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(lastBrush.current.x, lastBrush.current.y);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    lastBrush.current = { x, y };
+  };
+  const onEraserDown = (e) => {
+    if (!eraserActive) return;
+    setErasing(true);
+    const overlay = eraserOverlayRef?.current;
+    if (overlay) {
+      const rect = overlay.getBoundingClientRect();
+      lastBrush.current = { x: ((e.clientX - rect.left) / rect.width) * overlay.width, y: ((e.clientY - rect.top) / rect.height) * overlay.height };
+    }
+    brushAt(e.clientX, e.clientY);
+    try { eraserOverlayRef.current.setPointerCapture(e.pointerId); } catch (_) {}
+  };
+  const onEraserMove = (e) => { if (erasing) brushAt(e.clientX, e.clientY); };
+  const onEraserUp = (e) => {
+    setErasing(false);
+    try { eraserOverlayRef?.current?.releasePointerCapture(e.pointerId); } catch (_) {}
   };
 
   return (
@@ -77,7 +124,19 @@ export default function CanvasArea({
 
       {hasImage && (
         <div className="kv-canvas-container" onWheel={onWheel}>
-          <canvas ref={canvasRef} className="kv-main-canvas" style={{ zoom }} />
+          <div className="kv-canvas-wrap" style={{ zoom }}>
+            <canvas ref={canvasRef} className="kv-main-canvas" />
+            {eraserActive && (
+              <canvas
+                ref={eraserOverlayRef}
+                className="kv-eraser-overlay"
+                onPointerDown={onEraserDown}
+                onPointerMove={onEraserMove}
+                onPointerUp={onEraserUp}
+                onPointerCancel={onEraserUp}
+              />
+            )}
+          </div>
           {hasImage && !processing && (
             <div className="kv-zoom-bar">
               <button onClick={zoomOut} className="kv-zoom-btn" title="Zoom out"><Minus size={14} /></button>

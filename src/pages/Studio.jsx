@@ -28,6 +28,15 @@ import ListingModal from "@/components/studio/ListingModal";
 import { useHistory } from "@/hooks/useHistory";
 import { base44 } from "@/api/base44Client";
 
+const loadImageFromUrl = (url) =>
+  new Promise((resolve, reject) => {
+    const im = new Image();
+    im.crossOrigin = "anonymous";
+    im.onload = () => resolve(im);
+    im.onerror = () => reject(new Error("Could not load image"));
+    im.src = url;
+  });
+
 const INITIAL = {
   mode: "studio",
   backdrop: "studio-white",
@@ -51,6 +60,9 @@ const INITIAL = {
   feather: 2,
   aiBlended: false,
   aiBlendedModel: false,
+  textLayers: [],
+  selectedTextId: null,
+  brushSize: 8,
   exportPreset: "shopify-main",
   exportFormat: "image/png",
   exportQuality: 92,
@@ -82,6 +94,7 @@ export default function Studio() {
   const [onModelImage, setOnModelImage] = useState(null);
   const batchImagesInputRef = useRef(null);
   const batchFolderInputRef = useRef(null);
+  const eraserOverlayRef = useRef(null);
   const [processingText, setProcessingText] = useState("Processing...");
   const [progress, setProgress] = useState(null);
   const [showPresets, setShowPresets] = useState(false);
@@ -134,6 +147,7 @@ export default function Studio() {
     catalogAngle: st.catalogAngle, onModel: st.onModel, bgModel: st.bgModel,
     exportPreset: st.exportPreset, exportFormat: st.exportFormat,
     exportQuality: st.exportQuality, customW: st.customW, customH: st.customH, feather: st.feather,
+    textLayers: st.textLayers,
   });
   const { undo, redo, canUndo, canRedo } = useHistory(s, snapshotFields);
   const handleUndo = () => { const prev = undo(); if (prev) setS((p) => ({ ...p, ...prev })); };
@@ -426,7 +440,7 @@ export default function Studio() {
       setBackdropImage(null);
       setCatalogAngles([]);
       setOnModelImage(null);
-      setS((prev) => ({ ...prev, aiBlended: false, aiBlendedModel: false }));
+      setS((prev) => ({ ...prev, aiBlended: false, aiBlendedModel: false, textLayers: [], selectedTextId: null }));
 
       let w = img.naturalWidth;
       let h = img.naturalHeight;
@@ -930,7 +944,7 @@ export default function Studio() {
     else setCurrentTool("export");
   };
 
-  const STEP_ORDER = ["upload", "remove-bg", "backdrop", "effects", "catalog", "on-model", "export"];
+  const STEP_ORDER = ["upload", "remove-bg", "backdrop", "effects", "catalog", "on-model", "text", "expand", "export"];
 
   // Next step: persists ALL current adjustments (shadow, reflection, position,
   // backdrop, catalog angle, on-model settings) and advances to the next step.
@@ -975,6 +989,166 @@ export default function Studio() {
     nextStep();
   };
 
+  // ---- text layers ----
+  const addTextLayer = useCallback(() => {
+    const id = `t${Date.now()}`;
+    const layer = { id, text: "Your text", x: 50, y: 50, size: 8, color: "#FFFFFF", font: "Inter", bold: true, italic: false, rotation: 0, opacity: 100, bg: false, bgColor: "#000000", bgPadding: 6, bgRadius: 6, stroke: false, strokeColor: "#000000", strokeW: 3 };
+    setS((prev) => ({ ...prev, textLayers: [...prev.textLayers, layer], selectedTextId: id }));
+  }, []);
+  const updateTextLayer = useCallback((id, p) => {
+    setS((prev) => ({ ...prev, textLayers: prev.textLayers.map((l) => (l.id === id ? { ...l, ...p } : l)) }));
+  }, []);
+  const deleteTextLayer = useCallback((id) => {
+    setS((prev) => ({ ...prev, textLayers: prev.textLayers.filter((l) => l.id !== id), selectedTextId: prev.selectedTextId === id ? null : prev.selectedTextId }));
+  }, []);
+  const selectTextLayer = useCallback((id) => setS((prev) => ({ ...prev, selectedTextId: id })), []);
+
+  // ---- AI expand / uncrop ----
+  const expandImage = async (ratio, prompt) => {
+    if (!canvasRef.current || processing) return;
+    if (!canvasSize.w) { notify("Upload an image first", "error"); return; }
+    setProcessing(true);
+    setProgress(null);
+    setProcessingText("Preparing image…");
+    try {
+      const blob = await new Promise((r) => canvasRef.current.toBlob(r, "image/png"));
+      const file = new File([blob], "expand.png", { type: "image/png" });
+      const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
+      const [rw, rh] = ratio.split(":").map(Number);
+      let tw = canvasSize.w, th = canvasSize.h;
+      if (rw / rh > canvasSize.w / canvasSize.h) { th = canvasSize.h; tw = Math.round(canvasSize.h * rw / rh); }
+      else { tw = canvasSize.w; th = Math.round(canvasSize.w * rh / rw); }
+      setProcessingText("Expanding canvas…");
+      const res = await base44.functions.invoke("expandImage", { imageUrl: file_url, targetW: tw, targetH: th, prompt });
+      const url = res?.data?.url;
+      if (!url) throw new Error("No image returned");
+      const img = await loadImageFromUrl(url);
+      const { canvas, ctx } = createCanvas(tw, th);
+      const sc = Math.max(tw / img.width, th / img.height);
+      const dw = img.width * sc, dh = img.height * sc;
+      ctx.drawImage(img, (tw - dw) / 2, (th - dh) / 2, dw, dh);
+      setBackdropImage(canvas);
+      setCanvasSize({ w: tw, h: th });
+      patch({ backdrop: "photo", aiBlended: true });
+      notify("Image expanded");
+    } catch (err) {
+      notify("Expand failed: " + (err.message || "Unknown error"), "error");
+    } finally {
+      setProcessing(false);
+      setProcessingText("Processing...");
+    }
+  };
+
+  // ---- magic eraser ----
+  const clearEraser = () => {
+    const overlay = eraserOverlayRef.current;
+    if (overlay) { const ctx = overlay.getContext("2d"); ctx.clearRect(0, 0, overlay.width, overlay.height); }
+  };
+
+  const eraseObjects = async () => {
+    const overlay = eraserOverlayRef.current;
+    const canvas = canvasRef.current;
+    if (!overlay || !canvas || processing) return;
+    const base = productImage || originalImage;
+    if (!base) { notify("Upload an image first", "error"); return; }
+    setProcessing(true);
+    setProgress(null);
+    setProcessingText("Preparing marks…");
+    try {
+      const mc = document.createElement("canvas");
+      mc.width = canvas.width; mc.height = canvas.height;
+      const mctx = mc.getContext("2d");
+      mctx.drawImage(base, 0, 0, canvas.width, canvas.height);
+      mctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+      const markedBlob = await new Promise((r) => mc.toBlob(r, "image/png"));
+      const markedFile = new File([markedBlob], "marked.png", { type: "image/png" });
+      const { file_url: markedUrl } = await base44.integrations.Core.UploadPublicFile({ file: markedFile });
+      setProcessingText("Removing objects…");
+      const res = await base44.functions.invoke("eraseObjects", { markedImageUrl: markedUrl });
+      const cleanedUrl = res?.data?.url;
+      if (!cleanedUrl) throw new Error("No image returned");
+      const cleanedImg = await loadImageFromUrl(cleanedUrl);
+      const result = document.createElement("canvas");
+      result.width = canvas.width; result.height = canvas.height;
+      const rctx = result.getContext("2d");
+      rctx.drawImage(cleanedImg, 0, 0, canvas.width, canvas.height);
+      const origCanvas = document.createElement("canvas");
+      origCanvas.width = canvas.width; origCanvas.height = canvas.height;
+      const octx = origCanvas.getContext("2d");
+      octx.drawImage(base, 0, 0, canvas.width, canvas.height);
+      octx.globalCompositeOperation = "destination-out";
+      octx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+      rctx.drawImage(origCanvas, 0, 0);
+      const resultBlob = await new Promise((r) => result.toBlob(r, "image/png"));
+      const newImg = await loadImageFromBlob(resultBlob);
+      setOriginalImage(newImg);
+      clearEraser();
+      notify("Objects removed");
+    } catch (err) {
+      notify("Erase failed: " + (err.message || "Unknown error"), "error");
+    } finally {
+      setProcessing(false);
+      setProcessingText("Processing...");
+    }
+  };
+
+  // ---- text drag on canvas ----
+  useEffect(() => {
+    if (mode !== "studio" || currentStep !== "text" || !hasImage) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    let dragging = false;
+    const toPct = (cx, cy) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(100, ((cx - rect.left) / rect.width) * 100)),
+        y: Math.max(0, Math.min(100, ((cy - rect.top) / rect.height) * 100)),
+      };
+    };
+    const onDown = (e) => {
+      if (!s.selectedTextId) return;
+      dragging = true;
+      const { x, y } = toPct(e.clientX, e.clientY);
+      updateTextLayer(s.selectedTextId, { x, y });
+      canvas.style.cursor = "grabbing";
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    };
+    const onMove = (e) => {
+      if (!dragging || !s.selectedTextId) return;
+      const { x, y } = toPct(e.clientX, e.clientY);
+      updateTextLayer(s.selectedTextId, { x, y });
+    };
+    const onUp = (e) => {
+      dragging = false;
+      canvas.style.cursor = "grab";
+      try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+    };
+    canvas.style.cursor = "grab";
+    canvas.addEventListener("pointerdown", onDown);
+    canvas.addEventListener("pointermove", onMove);
+    canvas.addEventListener("pointerup", onUp);
+    canvas.addEventListener("pointercancel", onUp);
+    return () => {
+      canvas.removeEventListener("pointerdown", onDown);
+      canvas.removeEventListener("pointermove", onMove);
+      canvas.removeEventListener("pointerup", onUp);
+      canvas.removeEventListener("pointercancel", onUp);
+      canvas.style.cursor = "";
+    };
+  }, [mode, currentStep, hasImage, s.selectedTextId, updateTextLayer]);
+
+  // ---- size & clear the eraser brush overlay ----
+  useEffect(() => {
+    if (mode !== "retouch" || currentTool !== "erase") return;
+    const overlay = eraserOverlayRef.current;
+    const canvas = canvasRef.current;
+    if (!overlay || !canvas) return;
+    overlay.width = canvas.width;
+    overlay.height = canvas.height;
+    const ctx = overlay.getContext("2d");
+    ctx.clearRect(0, 0, overlay.width, overlay.height);
+  }, [mode, currentTool, canvasSize, hasImage]);
+
   const actions = {
     studio: {
       browse: () => fileInputRef.current?.click(),
@@ -992,6 +1166,11 @@ export default function Studio() {
       skipStep,
       export: doExport,
       selectExportPreset,
+      addTextLayer,
+      updateTextLayer,
+      deleteTextLayer,
+      selectTextLayer,
+      expandImage,
     },
     retouch: {
       removeBg: () => doRemoveBg(true),
@@ -1004,6 +1183,8 @@ export default function Studio() {
       resetLighting,
       export: doExport,
       selectExportPreset,
+      eraseObjects,
+      clearEraser,
     },
   };
 
@@ -1034,6 +1215,7 @@ export default function Studio() {
     setBackdropBlur: (v) => patch({ backdropBlur: v }),
     setCustomW: (v) => patch({ customW: v }),
     setCustomH: (v) => patch({ customH: v }),
+    setBrushSize: (v) => patch({ brushSize: v }),
   };
 
   return (
@@ -1102,6 +1284,9 @@ export default function Studio() {
             canvasRef={canvasRef}
             originalImage={originalImage}
             originalFile={originalFile}
+            eraserActive={mode === "retouch" && currentTool === "erase"}
+            eraserOverlayRef={eraserOverlayRef}
+            brushSize={s.brushSize}
           />
         )}
         <aside className="kv-controls-panel">
@@ -1119,7 +1304,7 @@ export default function Studio() {
               canvasRef={canvasRef}
             />
           ) : mode === "retouch" ? (
-            <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} originalImage={originalImage} />
+            <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} originalImage={originalImage} processing={processing} />
           ) : (
             <BatchControls
               state={s}

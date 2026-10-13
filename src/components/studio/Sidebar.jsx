@@ -1,7 +1,7 @@
 import React from "react";
 import {
   Upload, Scissors, Image as ImageIcon, Sun, Box, User, Download,
-  Wand2, Sliders, Aperture, Sparkles,
+  Wand2, Sliders, Aperture, Sparkles, Type, Expand, Eraser,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,8 @@ export const STUDIO_STEPS = [
   { key: "effects", label: "Shadow & reflection", icon: Sun },
   { key: "catalog", label: "Multi-angle catalog", icon: Box },
   { key: "on-model", label: "On-model placement", icon: User },
+  { key: "text", label: "Text & typography", icon: Type },
+  { key: "expand", label: "Expand canvas", icon: Expand },
   { key: "export", label: "Export", icon: Download },
 ];
 
@@ -20,6 +22,7 @@ export const RETOUCH_TOOLS = [
   { key: "adjust", label: "Adjust", icon: Sliders },
   { key: "bokeh", label: "Bokeh / depth", icon: Aperture },
   { key: "retouch", label: "Retouch", icon: Sparkles },
+  { key: "erase", label: "Magic eraser", icon: Eraser },
   { key: "export", label: "Export", icon: Download },
 ];
 

@@ -5,6 +5,7 @@ import OptionGrid from "./OptionGrid";
 import { lightingPresetList } from "@/lib/kanvasly/relighting";
 import { cameraFilterList, generateFilterThumbnails } from "@/lib/kanvasly/filters";
 import { retouchExportList, exportPresets } from "@/lib/kanvasly/exportUtils";
+import EraserControls from "./EraserControls";
 import { cn } from "@/lib/utils";
 
 function PanelHeader({ icon: Icon, title, children }) {
@@ -23,7 +24,7 @@ function Hint({ children }) {
   return <p className="kv-hint">{children}</p>;
 }
 
-export default function RetouchControls({ tool, state, actions, setters, originalImage }) {
+export default function RetouchControls({ tool, state, actions, setters, originalImage, processing }) {
   const [thumbs, setThumbs] = useState({});
   const [thumbsReady, setThumbsReady] = useState(false);
 
@@ -179,6 +180,17 @@ export default function RetouchControls({ tool, state, actions, setters, origina
             )}
           </div>
         </div>
+      )}
+
+      {/* ERASE */}
+      {tool === "erase" && (
+        <EraserControls
+          brushSize={state.brushSize}
+          setBrushSize={setters.setBrushSize}
+          onErase={actions.eraseObjects}
+          onClear={actions.clearEraser}
+          processing={processing}
+        />
       )}
 
       {/* EXPORT */}

@@ -3,6 +3,8 @@ import { Sparkles, Wand2, Layers, User, Download, FolderOpen } from "lucide-reac
 import Slider from "./Slider";
 import OptionGrid from "./OptionGrid";
 import DriveExport from "./DriveExport";
+import TextControls from "./TextControls";
+import ExpandControls from "./ExpandControls";
 import { backdropList } from "@/lib/kanvasly/backdrops";
 import { angleList } from "@/lib/kanvasly/catalog";
 import { modelPoseList } from "@/lib/kanvasly/onModel";
@@ -401,6 +403,23 @@ export default function StudioControls({
             Apply placement
           </button>
         </div>
+      )}
+
+      {/* TEXT */}
+      {step === "text" && (
+        <TextControls
+          layers={state.textLayers}
+          selectedId={state.selectedTextId}
+          onAdd={actions.addTextLayer}
+          onUpdate={actions.updateTextLayer}
+          onDelete={actions.deleteTextLayer}
+          onSelect={actions.selectTextLayer}
+        />
+      )}
+
+      {/* EXPAND */}
+      {step === "expand" && (
+        <ExpandControls onExpand={actions.expandImage} aiGenerating={aiGenerating} />
       )}
 
       {/* EXPORT */}
