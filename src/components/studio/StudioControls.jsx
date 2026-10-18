@@ -5,6 +5,8 @@ import OptionGrid from "./OptionGrid";
 import DriveExport from "./DriveExport";
 import TextControls from "./TextControls";
 import ExpandControls from "./ExpandControls";
+import SceneTemplates from "./SceneTemplates";
+import RecolorControls from "./RecolorControls";
 import { backdropList } from "@/lib/kanvasly/backdrops";
 import { angleList } from "@/lib/kanvasly/catalog";
 import { modelPoseList } from "@/lib/kanvasly/onModel";
@@ -149,6 +151,7 @@ export default function StudioControls({
               {aiGenerating ? "Generating…" : "Generate scene"}
             </button>
           </div>
+          <SceneTemplates onGenerate={actions.generateScene} aiGenerating={aiGenerating} />
           <div className="flex flex-col gap-1.5">
             <label className="text-[12px] text-kanvasly-secondary">Your own photo</label>
             <button
@@ -403,6 +406,11 @@ export default function StudioControls({
             Apply placement
           </button>
         </div>
+      )}
+
+      {/* RECOLOR */}
+      {step === "recolor" && (
+        <RecolorControls onRecolor={actions.recolorProduct} aiGenerating={aiGenerating} />
       )}
 
       {/* TEXT */}

@@ -16,6 +16,7 @@ import { generateBackdrop, generateColorBackdrop } from "@/lib/kanvasly/backdrop
 import { generateCatalog, compositeAngle, angleTransforms } from "@/lib/kanvasly/catalog";
 import { compositeOnModel, compositeOnAIModel } from "@/lib/kanvasly/onModel";
 import { exportToPreset } from "@/lib/kanvasly/exportUtils";
+import { upscaleCanvas } from "@/lib/kanvasly/upscale";
 import { lightingPresets, applyRelighting } from "@/lib/kanvasly/relighting";
 import { cameraFilters } from "@/lib/kanvasly/filters";
 import { compositeProduct } from "@/lib/kanvasly/compositing";
@@ -944,7 +945,7 @@ export default function Studio() {
     else setCurrentTool("export");
   };
 
-  const STEP_ORDER = ["upload", "remove-bg", "backdrop", "effects", "catalog", "on-model", "text", "expand", "export"];
+  const STEP_ORDER = ["upload", "remove-bg", "backdrop", "effects", "catalog", "on-model", "recolor", "text", "expand", "export"];
 
   // Next step: persists ALL current adjustments (shadow, reflection, position,
   // backdrop, catalog angle, on-model settings) and advances to the next step.
@@ -1092,6 +1093,60 @@ export default function Studio() {
     }
   };
 
+  // ---- recolor product (AI image-to-image, then re-isolate) ----
+  const recolorProduct = async (targetColor) => {
+    const c = (targetColor || "").trim();
+    if (!c || processing) return;
+    if (!canvasSize.w) { notify("Upload a product image first", "error"); return; }
+    if (!productImage) { notify("Remove background first so the AI can recolor your product", "error"); return; }
+    setAiGenerating(true);
+    setProcessing(true);
+    setProgress(null);
+    setProcessingText("Uploading product…");
+    try {
+      const productUrl = await uploadProductForAI();
+      setProcessingText("Recoloring product…");
+      const res = await base44.functions.invoke("recolorProduct", { productImageUrl: productUrl, targetColor: c });
+      const url = res?.data?.url;
+      if (!url) throw new Error("No image returned");
+      const img = await loadImageFromUrl(url);
+      setProcessingText("Re-isolating product…");
+      const rb = await removeBackground(img, { model: s.bgModel });
+      const product = await loadImageFromBlob(rb);
+      setProductImage(product);
+      notify("Product recolored");
+    } catch (err) {
+      notify("Recolor failed: " + (err.message || "Unknown error"), "error");
+    } finally {
+      setAiGenerating(false);
+      setProcessing(false);
+      setProcessingText("Processing...");
+    }
+  };
+
+  // ---- upscale (client-side, high-quality resample + sharpen) ----
+  const upscale = async (scale, sharpen) => {
+    if (processing) return;
+    const base = productImage || originalImage;
+    if (!base) { notify("Upload an image first", "error"); return; }
+    setProcessing(true);
+    setProgress(null);
+    setProcessingText("Upscaling…");
+    try {
+      const upscaled = upscaleCanvas(base, scale, sharpen);
+      const blob = await new Promise((r) => upscaled.toBlob(r, "image/png"));
+      const img = await loadImageFromBlob(blob);
+      if (productImage) setProductImage(img); else setOriginalImage(img);
+      setCanvasSize({ w: upscaled.width, h: upscaled.height });
+      notify(`Image upscaled to ${upscaled.width} × ${upscaled.height}`);
+    } catch (err) {
+      notify("Upscale failed: " + (err.message || "Unknown error"), "error");
+    } finally {
+      setProcessing(false);
+      setProcessingText("Processing...");
+    }
+  };
+
   // ---- text drag on canvas ----
   useEffect(() => {
     if (mode !== "studio" || currentStep !== "text" || !hasImage) return;
@@ -1171,6 +1226,7 @@ export default function Studio() {
       deleteTextLayer,
       selectTextLayer,
       expandImage,
+      recolorProduct,
     },
     retouch: {
       removeBg: () => doRemoveBg(true),
@@ -1185,6 +1241,7 @@ export default function Studio() {
       selectExportPreset,
       eraseObjects,
       clearEraser,
+      upscale,
     },
   };
 
@@ -1304,7 +1361,7 @@ export default function Studio() {
               canvasRef={canvasRef}
             />
           ) : mode === "retouch" ? (
-            <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} originalImage={originalImage} processing={processing} />
+            <RetouchControls tool={currentTool} state={s} actions={actions.retouch} setters={setters} originalImage={originalImage} processing={processing} canvasSize={canvasSize} />
           ) : (
             <BatchControls
               state={s}
