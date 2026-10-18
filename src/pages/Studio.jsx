@@ -441,7 +441,20 @@ export default function Studio() {
       setBackdropImage(null);
       setCatalogAngles([]);
       setOnModelImage(null);
-      setS((prev) => ({ ...prev, aiBlended: false, aiBlendedModel: false, textLayers: [], selectedTextId: null }));
+      setUploadedPhoto(null);
+      uploadedPhotoCanvasRef.current = null;
+      catalogAngleRef.current = { rotation: 0, scaleY: 1 };
+      catalogLiveAngleRef.current = { rotation: 0, scaleY: 1 };
+      setS((prev) => ({
+        ...prev,
+        aiBlended: false,
+        aiBlendedModel: false,
+        textLayers: [],
+        selectedTextId: null,
+        backdrop: "studio-white",
+        customColor: INITIAL.customColor,
+        catalogAngle: { rotation: 0, scaleY: 1 },
+      }));
 
       let w = img.naturalWidth;
       let h = img.naturalHeight;
@@ -982,6 +995,8 @@ export default function Studio() {
     } else if (step === "on-model") {
       setS((prev) => ({ ...prev, onModel: { ...INITIAL.onModel } }));
       setOnModelImage(null);
+    } else if (step === "text") {
+      setS((prev) => ({ ...prev, textLayers: [], selectedTextId: null }));
     }
   };
 
@@ -1082,7 +1097,7 @@ export default function Studio() {
       rctx.drawImage(origCanvas, 0, 0);
       const resultBlob = await new Promise((r) => result.toBlob(r, "image/png"));
       const newImg = await loadImageFromBlob(resultBlob);
-      setOriginalImage(newImg);
+      if (productImage) setProductImage(newImg); else setOriginalImage(newImg);
       clearEraser();
       notify("Objects removed");
     } catch (err) {

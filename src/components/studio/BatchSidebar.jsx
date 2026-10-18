@@ -24,7 +24,7 @@ export default function BatchSidebar({ items, onRemove, onClear, processing }) {
             className="kv-step"
             style={{ cursor: "default", marginBottom: 2 }}
           >
-            <span className="kv-step-num">
+            <span className="kv-step-icon">
               <StatusIcon status={it.status} />
             </span>
             <span
@@ -54,7 +54,7 @@ export default function BatchSidebar({ items, onRemove, onClear, processing }) {
             onClick={onClear}
             style={{ color: "var(--kv-text-tertiary)", marginTop: 6 }}
           >
-            <span className="kv-step-num">
+            <span className="kv-step-icon">
               <Trash2 size={13} />
             </span>
             <span className="kv-step-label">Clear all</span>
