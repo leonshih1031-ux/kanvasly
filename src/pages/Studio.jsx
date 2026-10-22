@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import Topbar from "@/components/studio/Topbar";
-import Sidebar from "@/components/studio/Sidebar";
+import Sidebar, { STUDIO_STEPS, RETOUCH_TOOLS } from "@/components/studio/Sidebar";
 import CanvasArea from "@/components/studio/CanvasArea";
 import StudioControls from "@/components/studio/StudioControls";
 import RetouchControls from "@/components/studio/RetouchControls";
@@ -26,7 +26,9 @@ import BatchCanvasArea from "@/components/studio/BatchCanvasArea";
 import BatchControls from "@/components/studio/BatchControls";
 import PresetModal from "@/components/studio/PresetModal";
 import ListingModal from "@/components/studio/ListingModal";
+import ShortcutsModal from "@/components/studio/ShortcutsModal";
 import { useHistory } from "@/hooks/useHistory";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { base44 } from "@/api/base44Client";
 
 const loadImageFromUrl = (url) =>
@@ -101,6 +103,7 @@ export default function Studio() {
   const [showPresets, setShowPresets] = useState(false);
   const [showListing, setShowListing] = useState(false);
   const [originalFile, setOriginalFile] = useState(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Snapshot of the studio composition settings to save into / load from a preset.
   const presetSettings = {
@@ -153,23 +156,8 @@ export default function Studio() {
   const { undo, redo, canUndo, canRedo } = useHistory(s, snapshotFields);
   const handleUndo = () => { const prev = undo(); if (prev) setS((p) => ({ ...p, ...prev })); };
   const handleRedo = () => { const next = redo(); if (next) setS((p) => ({ ...p, ...next })); };
-  useEffect(() => {
-    const onKey = (e) => {
-      const tag = (e.target.tagName || "").toLowerCase();
-      if (tag === "input" || tag === "textarea" || tag === "select") return;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        const snap = e.shiftKey ? redo() : undo();
-        if (snap) setS((p) => ({ ...p, ...snap }));
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
-        e.preventDefault();
-        const snap = redo();
-        if (snap) setS((p) => ({ ...p, ...snap }));
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo]);
+  // Undo / redo and the rest of the keyboard shortcuts are registered together
+  // near the end of the component, next to the handlers they call.
 
   // ---- state setters ----
   const patch = useCallback((p) => setS((prev) => ({ ...prev, ...p })), []);
@@ -1290,6 +1278,38 @@ export default function Studio() {
     setBrushSize: (v) => patch({ brushSize: v }),
   };
 
+  // ---- keyboard shortcuts ----
+  const navItems = mode === "studio" ? STUDIO_STEPS : mode === "retouch" ? RETOUCH_TOOLS : [];
+  const cycleNav = (dir) => {
+    if (!navItems.length) return;
+    const cur = mode === "studio" ? currentStep : currentTool;
+    const idx = navItems.findIndex((it) => it.key === cur);
+    const next = idx < 0 ? 0 : (idx + dir + navItems.length) % navItems.length;
+    onSidebarSelect(navItems[next].key);
+  };
+  const shortcutMap = {
+    "mod+z": handleUndo,
+    "mod+shift+z": handleRedo,
+    "mod+y": handleRedo,
+    "mod+s": doExport,
+    "mod+enter": () => (mode === "studio" ? nextStep() : cycleNav(1)),
+    "mod+1": () => onModeChange("studio"),
+    "mod+2": () => onModeChange("retouch"),
+    "mod+3": () => onModeChange("batch"),
+    "[": () => cycleNav(-1),
+    "]": () => cycleNav(1),
+    "?": () => setShowShortcuts((v) => !v),
+    escape: () => {
+      setShowShortcuts(false);
+      setShowPresets(false);
+      setShowListing(false);
+    },
+  };
+  navItems.slice(0, 9).forEach((it, i) => {
+    shortcutMap[String(i + 1)] = () => onSidebarSelect(it.key);
+  });
+  useKeyboardShortcuts(shortcutMap);
+
   return (
     <div className="kv-app">
       <input
@@ -1320,7 +1340,7 @@ export default function Studio() {
           e.target.value = "";
         }}
       />
-      <Topbar mode={mode} onModeChange={onModeChange} hasImage={hasImage} onExportClick={onExportClick} onPresetsClick={() => setShowPresets(true)} onListingClick={() => setShowListing(true)} canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo} />
+      <Topbar mode={mode} onModeChange={onModeChange} hasImage={hasImage} onExportClick={onExportClick} onPresetsClick={() => setShowPresets(true)} onListingClick={() => setShowListing(true)} onShortcutsClick={() => setShowShortcuts(true)} canUndo={canUndo} canRedo={canRedo} onUndo={handleUndo} onRedo={handleRedo} />
       {showPresets && (
         <PresetModal
           currentSettings={presetSettings}
@@ -1331,6 +1351,7 @@ export default function Studio() {
       {showListing && (
         <ListingModal canvasRef={canvasRef} onClose={() => setShowListing(false)} />
       )}
+      {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
       <div className="kv-layout">
         {mode === "batch" ? (
           <BatchSidebar items={batchItems} onRemove={removeBatchItem} onClear={clearBatch} processing={processing} />

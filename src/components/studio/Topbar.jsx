@@ -1,6 +1,7 @@
 import React from "react";
-import { Download, Bookmark, Undo2, Redo2, FileText } from "lucide-react";
+import { Download, Bookmark, Undo2, Redo2, FileText, Keyboard } from "lucide-react";
 import Logo from "./Logo";
+import { MOD_LABEL, SHIFT_LABEL } from "@/hooks/useKeyboardShortcuts";
 import { cn } from "@/lib/utils";
 
 const MODES = [
@@ -9,7 +10,7 @@ const MODES = [
   { key: "batch", label: "Batch" },
 ];
 
-export default function Topbar({ mode, onModeChange, hasImage, onExportClick, onPresetsClick, onListingClick, canUndo, canRedo, onUndo, onRedo }) {
+export default function Topbar({ mode, onModeChange, hasImage, onExportClick, onPresetsClick, onListingClick, onShortcutsClick, canUndo, canRedo, onUndo, onRedo }) {
   return (
     <header className="kv-topbar">
       <div className="flex items-center gap-2.5">
@@ -33,11 +34,14 @@ export default function Topbar({ mode, onModeChange, hasImage, onExportClick, on
 
       <div className="flex items-center gap-2">
         <div className="kv-icon-group">
-          <button onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl+Z)" className="kv-icon-btn">
+          <button onClick={onUndo} disabled={!canUndo} title={`Undo (${MOD_LABEL}+Z)`} className="kv-icon-btn">
             <Undo2 size={15} />
           </button>
-          <button onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl+Shift+Z)" className="kv-icon-btn">
+          <button onClick={onRedo} disabled={!canRedo} title={`Redo (${MOD_LABEL}+${SHIFT_LABEL}+Z)`} className="kv-icon-btn">
             <Redo2 size={15} />
+          </button>
+          <button onClick={onShortcutsClick} title="Keyboard shortcuts (?)" className="kv-icon-btn">
+            <Keyboard size={15} />
           </button>
         </div>
         <button
